@@ -1,5 +1,5 @@
 import { Telegraf } from 'telegraf';
-import { config } from '../config/env.js';
+import config from '../config/env.js';
 import { generateText } from '../services/grok.js';
 import { getUser, createUser, updateUserAffection } from '../services/supabase.js';
 import type { User } from '../types/index.js';

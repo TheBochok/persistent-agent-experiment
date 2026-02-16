@@ -1,5 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
-import { config } from '../config/env.js';
+import config from '../config/env.js';
 import type { User } from '../types/index.js';
 
 const supabase = createClient(config.SUPABASE_URL, config.SUPABASE_KEY);

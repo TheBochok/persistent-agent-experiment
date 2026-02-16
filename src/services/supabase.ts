@@ -9,13 +9,13 @@ export const getUser = async (userId: string): Promise<User | null> => {
     .from('users')
     .select('*')
     .eq('id', userId)
-    .single();
+    .maybeSingle();
 
   if (error) {
     console.error('Error fetching user:', error);
     return null;
   }
-  return data as User;
+  return data as User | null;
 };
 
 export const createUser = async (userId: string, name: string): Promise<User | null> => {

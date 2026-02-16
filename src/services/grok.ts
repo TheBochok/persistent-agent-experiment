@@ -23,7 +23,7 @@ export const generateText = async (prompt: string, context: { user: string; affe
       { role: 'system', content: systemPrompt },
       { role: 'user', content: prompt } // Ideally, inject conversation history here
     ],
-    model: 'grok-beta', // Or whatever xAI model is active
+    model: 'grok-4-1-fast-non-reasoning',
   });
 
   return completion.choices[0].message.content || '';

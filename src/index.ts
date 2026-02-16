@@ -1,3 +1,4 @@
+import 'dotenv/config';
 import { startBot } from './bot/handler.js';
 import config from './config/env.js';
 

@@ -23,6 +23,7 @@
   "homepage": "https://github.com/TheBochok/project-her#readme",
   "devDependencies": {
     "@supabase/supabase-js": "^2.95.3",
+    "@types/express": "^5.0.6",
     "@types/node": "^25.2.3",
     "@types/node-cron": "^3.0.11",
     "dotenv": "^17.3.1",
@@ -33,6 +34,7 @@
     "typescript": "^5.9.3"
   },
   "dependencies": {
+    "express": "^5.2.1",
     "node-cron": "^4.2.1"
   }
 }

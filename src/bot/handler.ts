@@ -1,4 +1,4 @@
-import { Telegraf } from 'telegraf';
+import { Telegraf, Markup } from 'telegraf';
 import config from '../config/env.js';
 import { generateText } from '../services/grok.js';
 import { generateImage } from '../services/image_gen.js';
@@ -26,11 +26,19 @@ bot.start(async (ctx) => {
       await ctx.reply("how did you even get my handle? i'm usually pretty good at filtering out the noise.");
     }, 2000);
     setTimeout(async () => {
-      await ctx.reply("fine. i'm aria. don't make me regret this. so... what do you want?");
+      await ctx.reply("fine. i'm aria. don't make me regret this. so... what do you want?", 
+        Markup.keyboard([
+          Markup.button.webApp('Check My Status', `https://${process.env.RAILWAY_STATIC_URL || 'your-url-here.up.railway.app'}/`)
+        ]).resize()
+      );
     }, 5000);
   } else {
     // Existing user greeting - keep it dry
-    await ctx.reply(`oh, it's you again.`);
+    await ctx.reply(`oh, it's you again.`, 
+      Markup.keyboard([
+        Markup.button.webApp('Check My Status', `https://${process.env.RAILWAY_STATIC_URL || 'your-url-here.up.railway.app'}/`)
+      ]).resize()
+    );
   }
 });
 

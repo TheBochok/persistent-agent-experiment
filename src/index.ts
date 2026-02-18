@@ -1,5 +1,6 @@
 import 'dotenv/config';
 import { startBot } from './bot/handler.js';
+import { startServer } from './server.js';
 import config from './config/env.js';
 import cron from 'node-cron';
 import { simulateGap } from './services/simulation.js';
@@ -31,4 +32,5 @@ cron.schedule('0 3 * * *', async () => {
   // (We'll keep the script-based approach or wrap it in a function later)
 });
 
+startServer();
 startBot();

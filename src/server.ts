@@ -13,6 +13,13 @@ const port = process.env.PORT || 3000;
 // Serve static files for the Mini-App frontend
 app.use(express.static(path.join(__dirname, '../public')));
 
+// CORS middleware to allow requests from the Telegram Mini-App domain
+app.use((req, res, next) => {
+  res.header('Access-Control-Allow-Origin', '*');
+  res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept');
+  next();
+});
+
 // API endpoint for Aria's status
 app.get('/api/status/:userId', async (req, res) => {
   const { userId } = req.params;

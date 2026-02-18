@@ -106,12 +106,21 @@
         tg.expand();
 
         async function fetchStatus() {
+            console.log('Fetching status...');
             const user = tg.initDataUnsafe.user;
-            if (!user) return;
+            if (!user) {
+                console.error('No user data found in tg.initDataUnsafe');
+                document.getElementById('activity').textContent = 'User Data Error';
+                return;
+            }
 
             try {
                 const response = await fetch(`/api/status/${user.id}`);
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
                 const data = await response.json();
+                console.log('Status data received:', data);
 
                 document.getElementById('activity').textContent = data.activity;
                 document.getElementById('mood').textContent = data.mood;

@@ -28,7 +28,7 @@ bot.start(async (ctx) => {
     setTimeout(async () => {
       await ctx.reply("fine. i'm aria. don't make me regret this. so... what do you want?", 
         Markup.keyboard([
-          Markup.button.webApp('Check My Status', `https://${process.env.RAILWAY_STATIC_URL || 'your-url-here.up.railway.app'}/`)
+          Markup.button.webApp('Check My Status', `https://project-her-production.up.railway.app/`)
         ]).resize()
       );
     }, 5000);
@@ -36,7 +36,7 @@ bot.start(async (ctx) => {
     // Existing user greeting - keep it dry
     await ctx.reply(`oh, it's you again.`, 
       Markup.keyboard([
-        Markup.button.webApp('Check My Status', `https://${process.env.RAILWAY_STATIC_URL || 'your-url-here.up.railway.app'}/`)
+        Markup.button.webApp('Check My Status', `https://project-her-production.up.railway.app/`)
       ]).resize()
     );
   }

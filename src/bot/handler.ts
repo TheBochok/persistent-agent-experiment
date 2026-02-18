@@ -19,9 +19,18 @@ bot.start(async (ctx) => {
   if (!user) {
     user = await createUser(userId, name);
     await initializeState(userId);
-    ctx.reply(`Hi ${name}. Who are you?`);
+    
+    // Onboarding Sequence: The "Skeptical Match"
+    await ctx.reply("wait, who is this?");
+    setTimeout(async () => {
+      await ctx.reply("how did you even get my handle? i'm usually pretty good at filtering out the noise.");
+    }, 2000);
+    setTimeout(async () => {
+      await ctx.reply("fine. i'm aria. don't make me regret this. so... what do you want?");
+    }, 5000);
   } else {
-    ctx.reply(`Oh, it's you again.`);
+    // Existing user greeting - keep it dry
+    await ctx.reply(`oh, it's you again.`);
   }
 });
 

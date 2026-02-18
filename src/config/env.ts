@@ -1,3 +1,5 @@
+import 'dotenv/config';
+
 const config = {
   TELEGRAM_BOT_TOKEN: process.env.TELEGRAM_BOT_TOKEN || '',
   SUPABASE_URL: process.env.SUPABASE_URL || '',

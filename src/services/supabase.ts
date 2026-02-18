@@ -19,6 +19,7 @@ export const getSupabase = () => {
   return _supabase;
 };
 
+// Compatibility object for existing code
 export const supabase = {
   from: (table: string) => getSupabase().from(table),
   rpc: (fn: string, args: any) => getSupabase().rpc(fn, args),
@@ -116,5 +117,3 @@ export const getRecentChatHistory = async (userId: string, limit = 10): Promise<
     .map((m: any) => `${m.role === 'user' ? 'Him' : 'Me'}: ${m.content}`)
     .join('\n');
 };
-
-export { getSupabase as supabase_getter, getSupabase };

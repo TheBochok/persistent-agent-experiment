@@ -2,6 +2,7 @@ import { Telegraf } from 'telegraf';
 import config from '../config/env.js';
 import { generateText } from '../services/grok.js';
 import { generateImage } from '../services/image_gen.js';
+import { enforcePersona } from '../services/persona_guard.js';
 import { getUser, createUser, updateUserAffection, updateUserTimezone, addChatMessage, getRecentChatHistory } from '../services/supabase.js';
 import { initializeState, getState, updateState } from '../services/state_manager.js';
 import { simulateGap } from '../services/simulation.js';
@@ -171,6 +172,9 @@ bot.on('text', async (ctx) => {
     memories: memories,
     persona: user!.persona_config
   });
+
+  // Enforce Persona Guardrails
+  replyData.reply = await enforcePersona(replyData.reply, user?.persona_config?.name || "Aria");
   
   // Save Assistant Message to History
   await addChatMessage(userId, 'assistant', replyData.reply);

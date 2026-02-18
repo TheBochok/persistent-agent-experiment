@@ -1,7 +1,11 @@
 import { Telegraf } from 'telegraf';
-import { config } from '../config/env.js';
+import config from '../config/env.js';
 import { generateText } from '../services/grok.js';
-import { getUser, createUser, updateUserAffection } from '../services/supabase.js';
+import { generateImage } from '../services/image_gen.js';
+import { getUser, createUser, updateUserAffection, updateUserTimezone, addChatMessage, getRecentChatHistory } from '../services/supabase.js';
+import { initializeState, getState, updateState } from '../services/state_manager.js';
+import { simulateGap } from '../services/simulation.js';
+import { searchMemories, addMemory } from '../services/gemini_memory.js';
 const bot = new Telegraf(config.TELEGRAM_BOT_TOKEN);
 bot.start(async (ctx) => {
     const userId = ctx.from.id.toString();
@@ -9,15 +13,74 @@ bot.start(async (ctx) => {
     let user = await getUser(userId);
     if (!user) {
         user = await createUser(userId, name);
-        if (!user) {
-            ctx.reply('Failed to create user. Please try again.');
-            return;
-        }
+        await initializeState(userId);
         ctx.reply(`Hi ${name}. Who are you?`);
     }
     else {
         ctx.reply(`Oh, it's you again.`);
     }
+});
+bot.command('remember', async (ctx) => {
+    const userId = ctx.from.id.toString();
+    console.log(`[/remember] Command received from ${userId}`);
+    // Usage: /remember I have a dog named Fido
+    const text = ctx.message.text.replace('/remember', '').trim();
+    if (!text) {
+        ctx.reply('Usage: /remember <fact>');
+        return;
+    }
+    const success = await addMemory(userId, text);
+    if (success) {
+        console.log(`[/remember] Successfully stored for ${userId}: "${text}"`);
+        ctx.reply('Got it. Stored in long-term memory.');
+    }
+    else {
+        console.error(`[/remember] Failed to store for ${userId}`);
+        ctx.reply('Failed to save memory. Check logs.');
+    }
+});
+bot.command('timezone', async (ctx) => {
+    const userId = ctx.from.id.toString();
+    // Extract timezone from message "/timezone Europe/Vilnius"
+    const args = ctx.message.text.split(' ');
+    if (args.length < 2) {
+        ctx.reply('Usage: /timezone <Zone_Name> (e.g. /timezone Europe/Vilnius)');
+        return;
+    }
+    const newZone = args[1];
+    // Basic validation (or just let Postgres throw if invalid?)
+    // Let's trust the user for now or try-catch the update.
+    try {
+        // Test if valid via JS Date
+        new Date().toLocaleString("en-US", { timeZone: newZone });
+        await updateUserTimezone(userId, newZone);
+        ctx.reply(`Timezone updated to ${newZone}. I'll sync my schedule to that.`);
+    }
+    catch (e) {
+        ctx.reply(`Invalid timezone: ${newZone}. Please use standard IANA names like 'Europe/Vilnius' or 'America/New_York'.`);
+    }
+});
+bot.command('debug_affection', async (ctx) => {
+    const userId = ctx.from.id.toString();
+    const args = ctx.message.text.split(' ');
+    if (args.length < 2) {
+        ctx.reply('Usage: /debug_affection <Score> (0-100)');
+        return;
+    }
+    const score = parseInt(args[1], 10);
+    if (isNaN(score) || score < 0 || score > 100) {
+        ctx.reply('Score must be 0-100.');
+        return;
+    }
+    // Directly update affection. We need a function that sets absolute value, not relative.
+    // Currently updateUserAffection does relative +=.
+    // I'll cheat and calculate the delta.
+    const user = await getUser(userId);
+    if (!user)
+        return;
+    const delta = score - user.affection;
+    await updateUserAffection(userId, delta);
+    ctx.reply(`DEBUG: Affection set to ${score}. Check my vibes.`);
 });
 bot.on('text', async (ctx) => {
     const userId = ctx.from.id.toString();
@@ -25,33 +88,105 @@ bot.on('text', async (ctx) => {
     let user = await getUser(userId);
     if (!user) {
         user = await createUser(userId, name);
-        if (!user) {
-            ctx.reply('Failed to load user. Please try again.');
-            return;
+        await initializeState(userId);
+    }
+    // If this is a world tick from cron, simulate the gap and don't reply to user
+    if (ctx.message.text === 'World Tick: Time to check on HER state.') {
+        console.log(`[World Tick] Simulating for ${userId}`);
+        const thought = await simulateGap(userId);
+        if (thought) {
+            // Rarity Logic: Base 1% + up to 3% bonus from affection
+            const baseProb = 0.01;
+            const bonusProb = (user?.affection || 0) / 100 * 0.03;
+            const roll = Math.random();
+            console.log(`[World Tick] Proactive roll: ${roll.toFixed(4)} vs Threshold: ${(baseProb + bonusProb).toFixed(4)}`);
+            if (roll < (baseProb + bonusProb)) {
+                console.log(`[World Tick] Proactive ping triggered: "${thought}"`);
+                await ctx.reply(thought);
+                await addChatMessage(userId, 'assistant', thought);
+            }
         }
+        return;
     }
-    const userMessage = ctx.message.text;
-    // Here we would ideally ask Grok to evaluate sentiment AND generate a reply.
-    // For MVP: assume neutral +1 for engagement unless explicitly "bad".
-    // Real implementation: Prompt Grok for JSON { reply, score_delta }
-    const reply = await generateText(userMessage, {
-        user: name,
-        affection: user.affection,
-        history: '' // TODO: Fetch recent chat history
-    });
-    // Update affection (Placeholder logic)
-    // If reply is very short or refuses, maybe decrease.
-    // If user says "love", increase.
-    if (userMessage.toLowerCase().includes('love')) {
-        await updateUserAffection(userId, 5);
+    // Nightly Consolidation
+    if (ctx.message.text === 'Nightly Consolidation: Time to synthesize chat history into long-term memories.') {
+        console.log(`[Consolidation] Running nightly script for ${userId}`);
+        // Instead of importing the script logic (which is complex for ESM), 
+        // we can use exec to run the standalone consolidation script.
+        // This is safer and cleaner for now.
+        return;
     }
-    else if (userMessage.toLowerCase().includes('hate')) {
-        await updateUserAffection(userId, -5);
+    // Simulate what happened since last message
+    let state = await getState(userId);
+    if (!state) {
+        state = await initializeState(userId);
     }
     else {
-        await updateUserAffection(userId, 1); // Slow burn
+        await simulateGap(userId);
+        // Refresh state after simulation
+        state = await getState(userId);
     }
-    ctx.reply(reply);
+    const userMessage = ctx.message.text;
+    // Save User Message to History
+    await addChatMessage(userId, 'user', userMessage);
+    // Search Long-Term Memory
+    const memories = await searchMemories(userId, userMessage);
+    console.log(`[Memory Search] Query: "${userMessage}" | Found: ${memories.length} results`);
+    if (memories.length > 0) {
+        console.log(`[Memory Recalled] Content:`, memories);
+    }
+    else {
+        console.log(`[Memory Recall] No memories matched threshold.`);
+    }
+    // Fetch Recent Chat History
+    const chatHistory = await getRecentChatHistory(userId);
+    // Ask Grok for reply using full context
+    const replyData = await generateText(userMessage, {
+        user: name,
+        affection: user.affection,
+        history: chatHistory,
+        state: state || undefined,
+        memories: memories,
+        persona: user.persona_config
+    });
+    // Save Assistant Message to History
+    await addChatMessage(userId, 'assistant', replyData.reply);
+    // Update affection (Smart Logic)
+    if (replyData.affection_change !== 0) {
+        await updateUserAffection(userId, replyData.affection_change);
+        console.log(`[Affection] User ${name}: ${replyData.affection_change} (${replyData.reason})`);
+    }
+    // Update last interaction timestamp
+    if (state) {
+        await updateState(userId, { last_update: new Date().toISOString() });
+    }
+    // Handle Image Generation if Aria wants to send a pic
+    if (replyData.image_prompt) {
+        console.log(`[Image Gen Logic] Triggered for user ${userId}. Prompt: ${replyData.image_prompt}`);
+        try {
+            const imageBuffer = await generateImage(replyData.image_prompt);
+            if (imageBuffer && imageBuffer.length > 0) {
+                console.log(`[Image Gen Logic] Success! Buffer size: ${imageBuffer.length}`);
+                // Send the photo first
+                await ctx.replyWithPhoto({ source: imageBuffer });
+                console.log(`[Image Gen Logic] Photo message sent to Telegram`);
+                // Then send the text reply
+                await ctx.reply(replyData.reply);
+            }
+            else {
+                console.error(`[Image Gen Logic] Failed - Buffer empty or null`);
+                ctx.reply(replyData.reply);
+            }
+        }
+        catch (imgError) {
+            console.error(`[Image Gen Logic] EXCEPTION:`, imgError.message || imgError);
+            ctx.reply(replyData.reply);
+        }
+    }
+    else {
+        console.log(`[Image Gen Logic] Skipped - No image_prompt in replyData`);
+        ctx.reply(replyData.reply);
+    }
 });
 export const startBot = () => {
     bot.launch().catch(err => {

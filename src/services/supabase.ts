@@ -5,7 +5,7 @@ import type { User } from '../types/index.js';
 // Lazy initialize to avoid crashing if env vars aren't ready at import time
 let _supabase: any = null;
 
-const getSupabase = () => {
+export const getSupabase = () => {
   if (!_supabase) {
     if (!config.SUPABASE_URL || !config.SUPABASE_KEY) {
       throw new Error(`Supabase configuration missing. URL: ${!!config.SUPABASE_URL}, KEY: ${!!config.SUPABASE_KEY}`);
@@ -17,6 +17,11 @@ const getSupabase = () => {
     });
   }
   return _supabase;
+};
+
+export const supabase = {
+  from: (table: string) => getSupabase().from(table),
+  rpc: (fn: string, args: any) => getSupabase().rpc(fn, args),
 };
 
 export const getUser = async (userId: string): Promise<User | null> => {

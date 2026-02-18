@@ -1,8 +1,8 @@
-import { getSupabase } from './supabase.js';
+import { supabase } from './supabase.js';
 import type { HerState, DiaryEntry } from '../types/index.js';
 
 export const getState = async (userId: string): Promise<HerState | null> => {
-  const { data, error } = await getSupabase()
+  const { data, error } = await supabase
     .from('her_state')
     .select('*')
     .eq('user_id', userId)
@@ -24,7 +24,7 @@ export const initializeState = async (userId: string): Promise<HerState | null> 
     diary_log: [],
   };
 
-  const { data, error } = await getSupabase()
+  const { data, error } = await supabase
     .from('her_state')
     .insert([initialState])
     .select()
@@ -38,7 +38,7 @@ export const initializeState = async (userId: string): Promise<HerState | null> 
 };
 
 export const updateState = async (userId: string, updates: Partial<HerState>): Promise<HerState | null> => {
-  const { data, error } = await getSupabase()
+  const { data, error } = await supabase
     .from('her_state')
     .update({ ...updates, last_update: new Date().toISOString() })
     .eq('user_id', userId)

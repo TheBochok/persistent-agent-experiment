@@ -3,7 +3,7 @@ import { startBot } from './bot/handler.js';
 import config from './config/env.js';
 import cron from 'node-cron';
 import { simulateGap } from './services/simulation.js';
-import { supabase } from './services/supabase.js';
+import { getSupabase } from './services/supabase.js';
 
 // Check essential env vars
 if (!config.TELEGRAM_BOT_TOKEN) {
@@ -15,6 +15,7 @@ if (!config.TELEGRAM_BOT_TOKEN) {
 // This makes the bot autonomous regardless of the deployment platform
 cron.schedule('*/15 * * * *', async () => {
   console.log('[Self-Cron] World Tick Triggered');
+  const supabase = getSupabase();
   const { data: users } = await supabase.from('users').select('id');
   if (users) {
     for (const user of users) {

@@ -2,14 +2,25 @@ import { createClient } from '@supabase/supabase-js';
 import config from '../config/env.js';
 import type { User } from '../types/index.js';
 
-const supabase = createClient(config.SUPABASE_URL, config.SUPABASE_KEY, {
-  auth: {
-    persistSession: false
+// Lazy initialize to avoid crashing if env vars aren't ready at import time
+let _supabase: any = null;
+
+const getSupabase = () => {
+  if (!_supabase) {
+    if (!config.SUPABASE_URL || !config.SUPABASE_KEY) {
+      throw new Error(`Supabase configuration missing. URL: ${!!config.SUPABASE_URL}, KEY: ${!!config.SUPABASE_KEY}`);
+    }
+    _supabase = createClient(config.SUPABASE_URL, config.SUPABASE_KEY, {
+      auth: {
+        persistSession: false
+      }
+    });
   }
-});
+  return _supabase;
+};
 
 export const getUser = async (userId: string): Promise<User | null> => {
-  const { data, error } = await supabase
+  const { data, error } = await getSupabase()
     .from('users')
     .select('*')
     .eq('id', userId)
@@ -23,7 +34,7 @@ export const getUser = async (userId: string): Promise<User | null> => {
 };
 
 export const createUser = async (userId: string, name: string): Promise<User | null> => {
-  const { data, error } = await supabase
+  const { data, error } = await getSupabase()
     .from('users')
     .insert([{ id: userId, name: name, affection: 10, timezone: 'UTC' }])
     .select()
@@ -37,7 +48,7 @@ export const createUser = async (userId: string, name: string): Promise<User | n
 };
 
 export const updateUserTimezone = async (userId: string, timezone: string): Promise<User | null> => {
-  const { data, error } = await supabase
+  const { data, error } = await getSupabase()
     .from('users')
     .update({ timezone: timezone })
     .eq('id', userId)
@@ -58,7 +69,7 @@ export const updateUserAffection = async (userId: string, change: number): Promi
   let newAffection = user.affection + change;
   newAffection = Math.max(0, Math.min(100, newAffection));
 
-  const { error } = await supabase
+  const { error } = await getSupabase()
     .from('users')
     .update({ affection: newAffection })
     .eq('id', userId);
@@ -70,7 +81,7 @@ export const updateUserAffection = async (userId: string, change: number): Promi
 };
 
 export const addChatMessage = async (userId: string, role: 'user' | 'assistant', content: string) => {
-  const { error } = await supabase.from('chat_history').insert({
+  const { error } = await getSupabase().from('chat_history').insert({
     user_id: userId,
     role,
     content
@@ -82,7 +93,7 @@ export const addChatMessage = async (userId: string, role: 'user' | 'assistant',
 };
 
 export const getRecentChatHistory = async (userId: string, limit = 10): Promise<string> => {
-  const { data, error } = await supabase
+  const { data, error } = await getSupabase()
     .from('chat_history')
     .select('role, content')
     .eq('user_id', userId)
@@ -101,4 +112,4 @@ export const getRecentChatHistory = async (userId: string, limit = 10): Promise<
     .join('\n');
 };
 
-export { supabase };
+export { getSupabase as supabase_getter, getSupabase };

@@ -1,5 +1,5 @@
 import config from '../config/env.js';
-import { supabase } from './supabase.js';
+import { getSupabase } from './supabase.js';
 
 const GEMINI_API_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-embedding-001:embedContent';
 
@@ -38,7 +38,7 @@ export const addMemory = async (userId: string, content: string): Promise<boolea
   const embedding = await generateEmbedding(content);
   if (!embedding) return false;
 
-  const { error } = await supabase.from('memories').insert({
+  const { error } = await getSupabase().from('memories').insert({
     user_id: userId,
     content,
     embedding
@@ -59,7 +59,7 @@ export const searchMemories = async (userId: string, query: string, limit = 3): 
   console.log(`[Memory Debug] Searching for userId: ${userId}`);
 
   // Call the Supabase RPC function we created
-  const { data, error } = await supabase.rpc('match_memories', {
+  const { data, error } = await getSupabase().rpc('match_memories', {
     query_embedding: embedding,
     match_threshold: 0.1, // EXTREMELY LOW for testing
     match_count: limit,

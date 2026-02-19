@@ -99,7 +99,7 @@ You must output a JSON object with:
   "reply": "Your message to him.",
   "affection_change": number,
   "reason": "Short reason why affection changed.",
-  "reaction": "Optional. A single emoji to react to his message. Use: 👍, ❤️, 🔥, 🥰, 👏, 😁, 🤔, 🤯, 😱, 🤬, 😢, 🤩, 🤮, 💩, 🙏, 👌, 🕊, 🤡, 🥱, 🥴, 🌚, 🌭, 💯, 🤣, ⚡️, 🍌, 🏆, 💔, 🤨, 😐, 🍓, 🍾, 💋, 🖕, 😈, 😴, 🤓, 👻, 👨‍💻, 🦾, 🤷‍♂️, 💅, 🤝, ✍️.",
+  "reaction": "Optional string. Use ONLY for high-impact moments (roasts, shock, deep feeling). Leave as null/omit for 90% of messages. Allowed: 👍, ❤️, 🔥, 🥰, 👏, 😁, 🤔, 🤯, 😱, 🤬, 😢, 🤩, 🤮, 💩, 🙏, 👌, 🕊, 🤡, 🥱, 🥴, 🌚, 💯, 🤣, ⚡️, 🏆, 💔, 🤨, 😐, 💋, 🖕, 😈, 😴, 🤓, 👻, 👨‍💻, 🦾, 🤷‍♂️, 💅, 🤝.",
   "image_prompt": "Optional. A detailed image generation prompt if he asked for a picture or if you're describing what you're doing/wearing. Describe your physical appearance consistently."
 }
 

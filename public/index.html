@@ -3,32 +3,36 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Aria Debug</title>
+    <title>Aria ID Debug</title>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
         body { background: #000; color: #0f0; font-family: monospace; padding: 20px; }
         .btn { 
-            background: #0f0; color: #000; padding: 15px; text-align: center; 
-            font-weight: bold; cursor: pointer; margin: 20px 0; border-radius: 5px;
+            background: #0f0; color: #000; padding: 12px; text-align: center; 
+            font-weight: bold; cursor: pointer; margin: 10px 0; border-radius: 5px;
         }
-        #console { background: #111; padding: 10px; border: 1px solid #333; font-size: 12px; height: 300px; overflow-y: scroll; }
+        #console { background: #111; padding: 10px; border: 1px solid #333; font-size: 11px; height: 250px; overflow-y: scroll; margin-bottom: 10px; }
+        input { background: #222; border: 1px solid #0f0; color: #0f0; padding: 10px; width: calc(100% - 22px); margin-bottom: 10px; }
         .err { color: #f00; }
         .msg { color: #0f0; }
+        .warn { color: #ff0; }
     </style>
 </head>
 <body>
-    <h3>ARIA DEBUG CONSOLE</h3>
-    <div id="console">Initializing...</div>
+    <h3>ARIA IDENTITY SCANNER</h3>
+    <div id="console">Scanning...</div>
     
-    <div class="btn" onclick="manualTest()">RUN MANUAL TEST</div>
+    <div class="label">Manual ID Test:</div>
+    <input type="text" id="manual-id" placeholder="Enter Telegram User ID">
+    <div class="btn" onclick="manualTest()">TEST THIS ID</div>
 
     <script>
         const tg = window.Telegram.WebApp;
         const cons = document.getElementById('console');
 
-        function print(msg, isErr = false) {
+        function print(msg, type = 'msg') {
             const div = document.createElement('div');
-            div.className = isErr ? 'err' : 'msg';
+            div.className = type;
             div.textContent = `> ${new Date().toLocaleTimeString()}: ${msg}`;
             cons.prepend(div);
         }
@@ -36,39 +40,61 @@
         try {
             tg.ready();
             tg.expand();
-            print("Telegram WebApp Ready");
-            print("User ID: " + (tg.initDataUnsafe?.user?.id || "NULL"));
+            print("WebApp Version: " + tg.version);
+            print("Platform: " + tg.platform);
+            
+            const user = tg.initDataUnsafe?.user;
+            if (user) {
+                print("SUCCESS: Found user in initDataUnsafe", "msg");
+                print("ID: " + user.id);
+                document.getElementById('manual-id').value = user.id;
+            } else {
+                print("FAIL: tg.initDataUnsafe.user is null", "err");
+                print("Checking raw initData...", "warn");
+                print("initData length: " + (tg.initData?.length || 0));
+                
+                // Try to parse raw initData if it exists
+                if (tg.initData) {
+                    const params = new URLSearchParams(tg.initData);
+                    const userRaw = params.get('user');
+                    if (userRaw) {
+                        const userData = JSON.parse(userRaw);
+                        print("RECOVERY: Found ID in raw initData: " + userData.id, "msg");
+                        document.getElementById('manual-id').value = userData.id;
+                    }
+                }
+            }
         } catch (e) {
-            print("TG Init Error: " + e.message, true);
+            print("Critical Init Error: " + e.message, "err");
         }
 
         async function manualTest() {
-            const id = tg.initDataUnsafe?.user?.id;
+            const id = document.getElementById('manual-id').value;
             if (!id) {
-                print("ABORT: No user ID found", true);
+                print("ERROR: No ID to test", "err");
                 return;
             }
 
-            print("Attempting fetch to /api/status/" + id);
+            print("Testing Fetch for ID: " + id);
             try {
-                const start = Date.now();
                 const res = await fetch('/api/status/' + id);
-                const end = Date.now();
-                print(`Fetch completed in ${end-start}ms. Status: ${res.status}`);
-                
+                print(`Status: ${res.status}`);
                 if (res.ok) {
                     const data = await res.json();
-                    print("Data received: " + JSON.stringify(data).substring(0, 50) + "...");
+                    print("Data Recv: " + JSON.stringify(data).substring(0, 60) + "...");
                 } else {
-                    print("Server returned error state", true);
+                    const errData = await res.json();
+                    print("Server Error: " + (errData.error || "Unknown"), "err");
                 }
             } catch (e) {
-                print("Fetch Exception: " + e.message, true);
+                print("Fetch Failed: " + e.message, "err");
             }
         }
 
-        // Initial test
-        setTimeout(manualTest, 1000);
+        // Auto-run if ID found
+        setTimeout(() => {
+            if (document.getElementById('manual-id').value) manualTest();
+        }, 1000);
     </script>
 </body>
 </html>

@@ -26,17 +26,20 @@ bot.start(async (ctx) => {
       await ctx.reply("how did you even get my handle? i'm usually pretty good at filtering out the noise.");
     }, 2000);
     setTimeout(async () => {
+      const webAppUrl = `https://project-her-production.up.railway.app/?v=${Date.now()}&id=${userId}`;
       await ctx.reply("fine. i'm aria. don't make me regret this. so... what do you want?", 
         Markup.keyboard([
-          Markup.button.webApp('Check My Status', `https://project-her-production.up.railway.app/?v=${Date.now()}`)
+          Markup.button.webApp('Check My Status', webAppUrl)
         ]).resize()
       );
     }, 5000);
   } else {
     // Existing user greeting - keep it dry
+    const userId = ctx.from.id.toString();
+    const webAppUrl = `https://project-her-production.up.railway.app/?v=${Date.now()}&id=${userId}`;
     await ctx.reply(`oh, it's you again.`, 
       Markup.keyboard([
-        Markup.button.webApp('Check My Status', `https://project-her-production.up.railway.app/?v=${Date.now()}`)
+        Markup.button.webApp('Check My Status', webAppUrl)
       ]).resize()
     );
   }

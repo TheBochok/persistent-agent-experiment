@@ -193,6 +193,16 @@ bot.on('text', async (ctx) => {
     persona: user!.persona_config
   });
 
+  // Handle Native Telegram Reaction
+  if (replyData.reaction) {
+    try {
+      await ctx.react(replyData.reaction as any);
+      console.log(`[Reaction] Aria reacted with: ${replyData.reaction}`);
+    } catch (err) {
+      console.warn(`[Reaction] Failed to react:`, err);
+    }
+  }
+
   // Enforce Persona Guardrails
   replyData.reply = await enforcePersona(replyData.reply, user?.persona_config?.name || "Aria");
   

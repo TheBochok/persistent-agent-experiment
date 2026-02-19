@@ -2,147 +2,73 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Aria Status</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Aria Debug</title>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
-        body {
-            background-color: #0f0f0f;
-            color: #00ff41;
-            font-family: 'Courier New', Courier, monospace;
-            padding: 20px;
-            margin: 0;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
+        body { background: #000; color: #0f0; font-family: monospace; padding: 20px; }
+        .btn { 
+            background: #0f0; color: #000; padding: 15px; text-align: center; 
+            font-weight: bold; cursor: pointer; margin: 20px 0; border-radius: 5px;
         }
-        .container {
-            width: 100%;
-            max-width: 400px;
-            border: 1px solid #00ff41;
-            padding: 20px;
-            box-shadow: 0 0 15px rgba(0, 255, 65, 0.2);
-            border-radius: 8px;
-        }
-        h1 {
-            font-size: 1.5rem;
-            text-align: center;
-            border-bottom: 1px solid #00ff41;
-            padding-bottom: 10px;
-            margin-top: 0;
-        }
-        .stat {
-            margin: 15px 0;
-        }
-        .label {
-            color: #888;
-            font-size: 0.8rem;
-            text-transform: uppercase;
-        }
-        .value {
-            font-size: 1.1rem;
-            margin-top: 4px;
-        }
-        .battery-container {
-            width: 100%;
-            height: 10px;
-            background-color: #222;
-            border-radius: 5px;
-            margin-top: 5px;
-            overflow: hidden;
-        }
-        .battery-level {
-            height: 100%;
-            background-color: #00ff41;
-            transition: width 0.5s ease-in-out;
-        }
-        .log-container {
-            margin-top: 20px;
-            font-size: 0.85rem;
-            color: #aaa;
-        }
-        .log-entry {
-            margin-bottom: 8px;
-            border-left: 2px solid #333;
-            padding-left: 10px;
-        }
+        #console { background: #111; padding: 10px; border: 1px solid #333; font-size: 12px; height: 300px; overflow-y: scroll; }
+        .err { color: #f00; }
+        .msg { color: #0f0; }
     </style>
 </head>
 <body>
-    <div class="container">
-        <h1>ARIA_SYSTEM_v1.0</h1>
-        
-        <div class="stat">
-            <div class="label">Current Activity</div>
-            <div id="activity" class="value">Loading...</div>
-        </div>
-
-        <div class="stat">
-            <div class="label">Mood</div>
-            <div id="mood" class="value">Loading...</div>
-        </div>
-
-        <div class="stat">
-            <div class="label">Social Battery</div>
-            <div id="battery-text" class="value">--%</div>
-            <div class="battery-container">
-                <div id="battery-level" class="battery-level" style="width: 0%"></div>
-            </div>
-        </div>
-
-        <div class="stat">
-            <div class="label">Connection Strength</div>
-            <div id="affection" class="value">--/100</div>
-        </div>
-
-        <div class="log-container">
-            <div class="label">Recent Events</div>
-            <div id="events"></div>
-        </div>
-    </div>
+    <h3>ARIA DEBUG CONSOLE</h3>
+    <div id="console">Initializing...</div>
+    
+    <div class="btn" onclick="manualTest()">RUN MANUAL TEST</div>
 
     <script>
         const tg = window.Telegram.WebApp;
-        tg.expand();
+        const cons = document.getElementById('console');
 
-        async function fetchStatus() {
-            console.log('Fetching status...');
-            const user = tg.initDataUnsafe.user;
-            if (!user) {
-                console.error('No user data found in tg.initDataUnsafe');
-                document.getElementById('activity').textContent = 'User Data Error';
+        function print(msg, isErr = false) {
+            const div = document.createElement('div');
+            div.className = isErr ? 'err' : 'msg';
+            div.textContent = `> ${new Date().toLocaleTimeString()}: ${msg}`;
+            cons.prepend(div);
+        }
+
+        try {
+            tg.ready();
+            tg.expand();
+            print("Telegram WebApp Ready");
+            print("User ID: " + (tg.initDataUnsafe?.user?.id || "NULL"));
+        } catch (e) {
+            print("TG Init Error: " + e.message, true);
+        }
+
+        async function manualTest() {
+            const id = tg.initDataUnsafe?.user?.id;
+            if (!id) {
+                print("ABORT: No user ID found", true);
                 return;
             }
 
+            print("Attempting fetch to /api/status/" + id);
             try {
-                const response = await fetch(`/api/status/${user.id}`);
-                if (!response.ok) {
-                    throw new Error(`HTTP error! status: ${response.status}`);
+                const start = Date.now();
+                const res = await fetch('/api/status/' + id);
+                const end = Date.now();
+                print(`Fetch completed in ${end-start}ms. Status: ${res.status}`);
+                
+                if (res.ok) {
+                    const data = await res.json();
+                    print("Data received: " + JSON.stringify(data).substring(0, 50) + "...");
+                } else {
+                    print("Server returned error state", true);
                 }
-                const data = await response.json();
-                console.log('Status data received:', data);
-
-                document.getElementById('activity').textContent = data.activity;
-                document.getElementById('mood').textContent = data.mood;
-                document.getElementById('battery-text').textContent = `${data.battery}%`;
-                document.getElementById('battery-level').style.width = `${data.battery}%`;
-                document.getElementById('affection').textContent = `${data.affection}/100`;
-
-                const eventsContainer = document.getElementById('events');
-                eventsContainer.innerHTML = '';
-                data.recent_events.forEach(event => {
-                    const div = document.createElement('div');
-                    div.className = 'log-entry';
-                    div.textContent = `> ${event.event}`;
-                    eventsContainer.appendChild(div);
-                });
-            } catch (error) {
-                console.error('Failed to fetch status:', error);
+            } catch (e) {
+                print("Fetch Exception: " + e.message, true);
             }
         }
 
-        fetchStatus();
-        setInterval(fetchStatus, 30000); // Refresh every 30s
+        // Initial test
+        setTimeout(manualTest, 1000);
     </script>
 </body>
 </html>

@@ -121,6 +121,10 @@ bot.on('text', async (ctx) => {
   
   if (!user) {
     user = await createUser(userId, name);
+    if (!user) {
+        console.error(`[Fatal] Could not create user ${userId}. Database desync?`);
+        return ctx.reply("ugh, something's wrong with my brain. tell ben my database is acting up.");
+    }
     await initializeState(userId);
   }
 
@@ -186,18 +190,24 @@ bot.on('text', async (ctx) => {
   // Ask Grok for reply using full context
   const replyData = await generateText(userMessage, { 
     user: name, 
-    affection: user!.affection, 
+    affection: user?.affection || 10, 
     history: chatHistory, 
     state: state || undefined,
     memories: memories,
-    persona: user!.persona_config
+    persona: user?.persona_config
   });
 
   // Handle Native Telegram Reaction
   if (replyData.reaction) {
     try {
-      await ctx.react(replyData.reaction as any);
-      console.log(`[Reaction] Aria reacted with: ${replyData.reaction}`);
+      // Clean the reaction: Extract only the first emoji
+      const emojiRegex = /(\u00a9|\u00ae|[\u2000-\u3300]|\ud83c[\ud000-\udfff]|\ud83d[\ud000-\udfff]|\ud83e[\ud000-\udfff])/g;
+      const matches = replyData.reaction.match(emojiRegex);
+      if (matches && matches.length > 0) {
+        const cleanEmoji = matches[0];
+        await ctx.react(cleanEmoji as any);
+        console.log(`[Reaction] Aria reacted with: ${cleanEmoji}`);
+      }
     } catch (err) {
       console.warn(`[Reaction] Failed to react:`, err);
     }

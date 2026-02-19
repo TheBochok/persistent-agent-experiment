@@ -256,11 +256,18 @@ bot.on('text', async (ctx) => {
   }
 });
 
-export const startBot = () => {
-  bot.launch().catch(err => {
-    console.error('Failed to launch bot', err);
-  });
-  console.log('Bot started');
+export const startBot = async () => {
+  try {
+    // Clear any stuck webhooks or polling sessions before starting
+    await bot.telegram.deleteWebhook({ drop_pending_updates: true });
+    
+    bot.launch().catch(err => {
+      console.error('Failed to launch bot', err);
+    });
+    console.log('Bot started and cleared previous sessions');
+  } catch (err) {
+    console.error('Error during bot startup:', err);
+  }
   
   // Enable graceful stop
   process.once('SIGINT', () => bot.stop('SIGINT'));

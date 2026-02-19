@@ -84,6 +84,7 @@ You must output a JSON object with:
   "reply": "Your message to him.",
   "affection_change": number,
   "reason": "Short reason why affection changed.",
+  "reaction": "Optional. A single emoji to react to his message. Use: 👍, ❤️, 🔥, 🥰, 👏, 😁, 🤔, 🤯, 😱, 🤬, 😢, 🤩, 🤮, 💩, 🙏, 👌, 🕊, 🤡, 🥱, 🥴, 🌚, 🌭, 💯, 🤣, ⚡️, 🍌, 🏆, 💔, 🤨, 😐, 🍓, 🍾, 💋, 🖕, 😈, 😴, 🤓, 👻, 👨‍💻, 🦾, 🤷‍♂️, 💅, 🤝, ✍️.",
   "image_prompt": "Optional. A detailed image generation prompt if he asked for a picture or if you're describing what you're doing/wearing. Describe your physical appearance consistently."
 }
 
@@ -124,7 +125,8 @@ If he is rude, YOU MUST LOWER THE SCORE. Do not be polite about it.
             reply: result.reply || "Sorry, I missed that.",
             affection_change: result.affection_change || 0,
             reason: result.reason || "Neutral interaction",
-            image_prompt: result.image_prompt
+            image_prompt: result.image_prompt,
+            reaction: result.reaction
         };
     }
     catch (error) {

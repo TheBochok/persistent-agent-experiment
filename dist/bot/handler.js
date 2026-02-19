@@ -1,7 +1,8 @@
-import { Telegraf } from 'telegraf';
+import { Telegraf, Markup } from 'telegraf';
 import config from '../config/env.js';
 import { generateText } from '../services/grok.js';
 import { generateImage } from '../services/image_gen.js';
+import { enforcePersona } from '../services/persona_guard.js';
 import { getUser, createUser, updateUserAffection, updateUserTimezone, addChatMessage, getRecentChatHistory } from '../services/supabase.js';
 import { initializeState, getState, updateState } from '../services/state_manager.js';
 import { simulateGap } from '../services/simulation.js';
@@ -14,10 +15,25 @@ bot.start(async (ctx) => {
     if (!user) {
         user = await createUser(userId, name);
         await initializeState(userId);
-        ctx.reply(`Hi ${name}. Who are you?`);
+        // Onboarding Sequence: The "Skeptical Match"
+        await ctx.reply("wait, who is this?");
+        setTimeout(async () => {
+            await ctx.reply("how did you even get my handle? i'm usually pretty good at filtering out the noise.");
+        }, 2000);
+        setTimeout(async () => {
+            const webAppUrl = `https://project-her-production.up.railway.app/?v=${Date.now()}&id=${userId}`;
+            await ctx.reply("fine. i'm aria. don't make me regret this. so... what do you want?", Markup.keyboard([
+                Markup.button.webApp('Check My Status', webAppUrl)
+            ]).resize());
+        }, 5000);
     }
     else {
-        ctx.reply(`Oh, it's you again.`);
+        // Existing user greeting - keep it dry
+        const userId = ctx.from.id.toString();
+        const webAppUrl = `https://project-her-production.up.railway.app/?v=${Date.now()}&id=${userId}`;
+        await ctx.reply(`oh, it's you again.`, Markup.keyboard([
+            Markup.button.webApp('Check My Status', webAppUrl)
+        ]).resize());
     }
 });
 bot.command('remember', async (ctx) => {
@@ -88,6 +104,10 @@ bot.on('text', async (ctx) => {
     let user = await getUser(userId);
     if (!user) {
         user = await createUser(userId, name);
+        if (!user) {
+            console.error(`[Fatal] Could not create user ${userId}. Database desync?`);
+            return ctx.reply("ugh, something's wrong with my brain. tell ben my database is acting up.");
+        }
         await initializeState(userId);
     }
     // If this is a world tick from cron, simulate the gap and don't reply to user
@@ -143,12 +163,30 @@ bot.on('text', async (ctx) => {
     // Ask Grok for reply using full context
     const replyData = await generateText(userMessage, {
         user: name,
-        affection: user.affection,
+        affection: user?.affection || 10,
         history: chatHistory,
         state: state || undefined,
         memories: memories,
-        persona: user.persona_config
+        persona: user?.persona_config
     });
+    // Handle Native Telegram Reaction
+    if (replyData.reaction) {
+        try {
+            // Clean the reaction: Extract only the first emoji
+            const emojiRegex = /(\u00a9|\u00ae|[\u2000-\u3300]|\ud83c[\ud000-\udfff]|\ud83d[\ud000-\udfff]|\ud83e[\ud000-\udfff])/g;
+            const matches = replyData.reaction.match(emojiRegex);
+            if (matches && matches.length > 0) {
+                const cleanEmoji = matches[0];
+                await ctx.react(cleanEmoji);
+                console.log(`[Reaction] Aria reacted with: ${cleanEmoji}`);
+            }
+        }
+        catch (err) {
+            console.warn(`[Reaction] Failed to react:`, err);
+        }
+    }
+    // Enforce Persona Guardrails
+    replyData.reply = await enforcePersona(replyData.reply, user?.persona_config?.name || "Aria");
     // Save Assistant Message to History
     await addChatMessage(userId, 'assistant', replyData.reply);
     // Update affection (Smart Logic)

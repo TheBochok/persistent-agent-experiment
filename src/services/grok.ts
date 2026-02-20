@@ -15,7 +15,7 @@ interface GrokResponse {
   reaction?: string;
 }
 
-export const generateText = async (prompt: string, context: { user: string; affection: number; history: string; state?: HerState; memories?: string[]; persona?: PersonaConfig }): Promise<GrokResponse> => {
+export const generateText = async (prompt: string, context: { user: string; affection: number; history: string; state?: HerState; memories?: string[]; persona?: PersonaConfig; imageUrl?: string }): Promise<GrokResponse> => {
   // Determine Core Identity & Relationship Stage
   let coreIdentity = "";
   let relationshipStatus = "";
@@ -118,12 +118,31 @@ If he is rude, YOU MUST LOWER THE SCORE. Do not be polite about it.
   console.log('---------------------');
 
   try {
+    const messages: any[] = [
+      { role: 'system', content: systemPrompt }
+    ];
+
+    if (context.imageUrl) {
+      // Vision Request
+      console.log(`[Grok] Processing Vision Request with Image: ${context.imageUrl}`);
+      messages.push({
+        role: 'user',
+        content: [
+          { type: 'text', text: context.history ? `Recent Conversation History:\n${context.history}\n\nLatest Message (attached with image): ${prompt}` : `(User sent an image) ${prompt}` },
+          { type: 'image_url', image_url: { url: context.imageUrl } }
+        ]
+      });
+    } else {
+      // Text Request
+      messages.push({ 
+        role: 'user', 
+        content: context.history ? `Recent Conversation History:\n${context.history}\n\nLatest Message: ${prompt}` : prompt 
+      });
+    }
+
     const completion = await grok.chat.completions.create({
-      messages: [
-        { role: 'system', content: systemPrompt },
-        { role: 'user', content: context.history ? `Recent Conversation History:\n${context.history}\n\nLatest Message: ${prompt}` : prompt }
-      ],
-      model: 'grok-4-fast-non-reasoning',
+      messages: messages as any, // Type assertion for mixed content
+      model: context.imageUrl ? 'grok-2-vision-1212' : 'grok-2-1212', // Use Vision model for images, Standard for text
       response_format: { type: 'json_object' },
     });
 

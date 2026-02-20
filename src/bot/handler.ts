@@ -256,6 +256,74 @@ bot.on('text', async (ctx) => {
   }
 });
 
+// Handle incoming photos (Vision Capability)
+bot.on('photo', async (ctx) => {
+  const userId = ctx.from.id.toString();
+  const name = ctx.from.first_name || 'Anonymous';
+  const caption = ctx.message.caption || '';
+  
+  console.log(`[Vision] Received photo from ${userId}. Caption: "${caption}"`);
+
+  // Basic User Init (Duplicate logic, should refactor but keep for safety)
+  let user = await getUser(userId);
+  if (!user) {
+    user = await createUser(userId, name);
+    await initializeState(userId);
+  }
+
+  // Get the highest resolution photo
+  const photos = ctx.message.photo;
+  const fileId = photos[photos.length - 1].file_id;
+  
+  try {
+    const fileLink = await ctx.telegram.getFileLink(fileId);
+    const imageUrl = fileLink.href;
+    console.log(`[Vision] File Link: ${imageUrl}`);
+
+    await ctx.sendChatAction('typing');
+
+    // Fetch context
+    let state = await getState(userId);
+    if (!state) state = await initializeState(userId);
+    
+    // Save to history (User sent an image)
+    await addChatMessage(userId, 'user', `[Sent an Image] ${caption}`);
+
+    // Call Grok with Vision
+    const chatHistory = await getRecentChatHistory(userId);
+    
+    // Pass caption as the prompt, or generic if empty
+    const prompt = caption || "What do you think of this?";
+    
+    // Explicitly pass imageUrl
+    const replyData = await generateText(prompt, { 
+      user: name, 
+      affection: user?.affection || 10, 
+      history: chatHistory, 
+      state: state || undefined,
+      memories: [], // Should fetch memories too? For now, skip for speed.
+      persona: user?.persona_config,
+      imageUrl: imageUrl // <--- CRITICAL
+    });
+
+    // Enforce Persona
+    replyData.reply = await enforcePersona(replyData.reply, user?.persona_config?.name || "Aria");
+
+    // Reply
+    await ctx.reply(replyData.reply);
+    await addChatMessage(userId, 'assistant', replyData.reply);
+
+    // Update affection
+    if (replyData.affection_change !== 0) {
+      await updateUserAffection(userId, replyData.affection_change);
+    }
+
+  } catch (err) {
+    console.error(`[Vision] Error processing photo:`, err);
+    ctx.reply("i can't see that for some reason. glitch in the matrix?");
+  }
+});
+
 export const sendProactiveMessage = async (userId: string, text: string) => {
   try {
     await bot.telegram.sendMessage(userId, text);

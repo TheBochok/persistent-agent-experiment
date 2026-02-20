@@ -256,6 +256,17 @@ bot.on('text', async (ctx) => {
   }
 });
 
+export const sendProactiveMessage = async (userId: string, text: string) => {
+  try {
+    await bot.telegram.sendMessage(userId, text);
+    console.log(`[Proactive] Sent to ${userId}: "${text}"`);
+    // Also save to history so she remembers she said it
+    await addChatMessage(userId, 'assistant', text);
+  } catch (err) {
+    console.error(`[Proactive] Failed to send to ${userId}:`, err);
+  }
+};
+
 export const startBot = async () => {
   try {
     // Clear any stuck webhooks or polling sessions before starting

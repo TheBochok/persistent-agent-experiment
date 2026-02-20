@@ -142,7 +142,7 @@ If he is rude, YOU MUST LOWER THE SCORE. Do not be polite about it.
 
     const completion = await grok.chat.completions.create({
       messages: messages as any, // Type assertion for mixed content
-      model: context.imageUrl ? 'grok-2-vision-1212' : 'grok-2-1212', // Use Vision model for images, Standard for text
+      model: 'grok-4-fast-non-reasoning', // Using grok-4-fast (Multimodal) for everything
       response_format: { type: 'json_object' },
     });
 

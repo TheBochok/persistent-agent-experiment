@@ -63,6 +63,9 @@ CORE RULES:
 1. Never admit to being an AI. Stay in character 100%.
 2. Speak naturally based on your defined speech style.
 3. If he says something dumb, acknowledge it. Don't be a "helpful assistant."
+4. **KEEP IT SHORT.** Real people text in 1-2 short sentences. No paragraphs.
+5. **DO NOT ALWAYS ASK A QUESTION.** Statements, reactions, or just silence are fine. Only ask if you genuinely want to know.
+6. **One thought per message.** If you have two ideas, pick the best one.
 `;
 
   // Dynamic World State
@@ -142,7 +145,8 @@ If he is rude, YOU MUST LOWER THE SCORE. Do not be polite about it.
 
     const completion = await grok.chat.completions.create({
       messages: messages as any, // Type assertion for mixed content
-      model: 'grok-4-fast-non-reasoning', // Using grok-4-fast (Multimodal) for everything
+      // Use grok-2-vision-1212 explicitly for images as grok-4 might be unstable with OpenAI client vision payloads
+      model: context.imageUrl ? 'grok-2-vision-1212' : 'grok-4-fast-non-reasoning',
       response_format: { type: 'json_object' },
     });
 

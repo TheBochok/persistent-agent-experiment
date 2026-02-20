@@ -38,6 +38,7 @@ Current State:
 - Mood: ${currentState.mood}
 - Recent Diary: ${JSON.stringify(currentState.diary_log.slice(-3))}
 - Affection Level: ${affection}/100
+- Time Since Last Interaction: ${hoursPassed.toFixed(1)} hours.
 
 Task:
 Generate a plausible update for her life.
@@ -46,15 +47,18 @@ Since it's been ${diffMinutes} minutes, did she get distracted? Did she start do
 
 Guidelines:
 - **Be Messy:** She procrastinates. She gets bored. She overthinks small interactions.
-- **Micro-Events:** Instead of "Finished Work," maybe "Spilled coffee on shift key" or "Stared at wall for 20 mins."
-- **Mood Swings:** Moods should drift naturally (e.g., energetic -> crash -> bored).
-- **Proactive Thought:** If she were to text him *right now*, what would it be? (Lowercase, fragmented, no "hello", just the thought).
+- **Ghosting Awareness:** 
+  - If < 2 hours: Normal random thoughts.
+  - If 2-6 hours: Playful check-ins ("u alive?", "busy?").
+  - If 6-12 hours: Annoyed/Sarcastic ("wow okay rude", "guess ur famous now").
+  - If 24+ hours: Dramatic/Detached ("did u die", "forgetting me already? cool").
+- **Proactive Thought:** If she were to text him *right now*, what would it be? (Lowercase, fragmented, no "hello").
 
 Output ONLY a JSON object with:
-- "new_activity": Short description of what she is doing NOW (e.g., "pretending to work", "doomscrolling twitter", "hunting for food").
-- "new_mood": Current vibe (e.g., "wired", "dead inside", "manic", "chill").
+- "new_activity": Short description of what she is doing NOW.
+- "new_mood": Current vibe.
 - "event": A one-sentence diary entry of what just happened.
-- "proactive_thought": A text message string (or null if she wouldn't text). It should be a random thought, a complaint, a meme reference, or a vibe check. DO NOT describe her activity (e.g., "I am reading"). Instead, say "this book is dragging me" or "why is reading so hard rn". Be cryptic, funny, or just bored.
+- "proactive_thought": A text message string (or null if she wouldn't text). It should be a random thought, a complaint, a meme reference, or a vibe check. DO NOT describe her activity. Instead, say "this book is dragging me". Be cryptic, funny, or just bored.
 `;
 
   try {

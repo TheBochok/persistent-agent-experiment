@@ -217,7 +217,8 @@ bot.on('text', async (ctx) => {
         history: chatHistory,
         state: state || undefined,
         memories: memories,
-        persona: user?.persona_config
+        persona: user?.persona_config,
+        timezone: user?.timezone
     });
     // Handle Native Telegram Reaction
     if (replyData.reaction) {
@@ -313,7 +314,8 @@ bot.on('photo', async (ctx) => {
             state: state || undefined,
             memories: [],
             persona: user?.persona_config,
-            imageUrl: base64Image // <--- NOW BASE64
+            imageUrl: base64Image,
+            timezone: user?.timezone
         });
         // Enforce Persona
         replyData.reply = await enforcePersona(replyData.reply, user?.persona_config?.name || "Aria");

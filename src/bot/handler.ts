@@ -244,13 +244,14 @@ bot.on('text', async (ctx) => {
   const chatHistory = await getRecentChatHistory(userId);
 
   // Ask Grok for reply using full context
-  const replyData = await generateText(userMessage, { 
-    user: name, 
-    affection: user?.affection || 10, 
-    history: chatHistory, 
+  const replyData = await generateText(userMessage, {
+    user: name,
+    affection: user?.affection || 10,
+    history: chatHistory,
     state: state || undefined,
     memories: memories,
-    persona: user?.persona_config
+    persona: user?.persona_config,
+    timezone: user?.timezone
   });
 
   // Handle Native Telegram Reaction
@@ -352,14 +353,15 @@ bot.on('photo', async (ctx) => {
     const prompt = caption || "What do you think of this?";
     
     // Explicitly pass imageUrl (as base64 data URI)
-    const replyData = await generateText(prompt, { 
-      user: name, 
-      affection: user?.affection || 10, 
-      history: chatHistory, 
+    const replyData = await generateText(prompt, {
+      user: name,
+      affection: user?.affection || 10,
+      history: chatHistory,
       state: state || undefined,
-      memories: [], 
+      memories: [],
       persona: user?.persona_config,
-      imageUrl: base64Image // <--- NOW BASE64
+      imageUrl: base64Image,
+      timezone: user?.timezone
     });
 
     // Enforce Persona

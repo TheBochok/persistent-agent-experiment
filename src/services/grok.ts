@@ -15,7 +15,7 @@ interface GrokResponse {
   reaction?: string;
 }
 
-export const generateText = async (prompt: string, context: { user: string; affection: number; history: string; state?: HerState; memories?: string[]; persona?: PersonaConfig; imageUrl?: string }): Promise<GrokResponse> => {
+export const generateText = async (prompt: string, context: { user: string; affection: number; history: string; state?: HerState; memories?: string[]; persona?: PersonaConfig; imageUrl?: string; timezone?: string }): Promise<GrokResponse> => {
   // Determine Core Identity & Relationship Stage
   let coreIdentity = "";
   let relationshipStatus = "";
@@ -122,6 +122,18 @@ SCORING RULES:
 
 If he is rude, YOU MUST LOWER THE SCORE. Do not be polite about it.
 `;
+
+  // User's local time
+  if (context.timezone) {
+    const localTime = new Date().toLocaleString('en-US', {
+      timeZone: context.timezone,
+      weekday: 'long',
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: true,
+    });
+    systemPrompt += `\nCURRENT TIME FOR HIM: ${localTime} (${context.timezone}). Let this inform your mood, energy, and any time-of-day references naturally — don't announce it unless relevant.\n`;
+  }
 
   console.log('--- SYSTEM PROMPT ---');
   console.log(systemPrompt);

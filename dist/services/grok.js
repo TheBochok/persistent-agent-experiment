@@ -105,6 +105,17 @@ SCORING RULES:
 
 If he is rude, YOU MUST LOWER THE SCORE. Do not be polite about it.
 `;
+    // User's local time
+    if (context.timezone) {
+        const localTime = new Date().toLocaleString('en-US', {
+            timeZone: context.timezone,
+            weekday: 'long',
+            hour: '2-digit',
+            minute: '2-digit',
+            hour12: true,
+        });
+        systemPrompt += `\nCURRENT TIME FOR HIM: ${localTime} (${context.timezone}). Let this inform your mood, energy, and any time-of-day references naturally — don't announce it unless relevant.\n`;
+    }
     console.log('--- SYSTEM PROMPT ---');
     console.log(systemPrompt);
     console.log('---------------------');

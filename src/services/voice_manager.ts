@@ -1,6 +1,6 @@
 import WebSocket from 'ws';
 import ffmpeg from 'fluent-ffmpeg';
-import { Readable } from 'stream';
+import { Readable, PassThrough } from 'stream';
 import config from '../config/env.js';
 
 interface VoiceSessionConfig {
@@ -124,7 +124,7 @@ export class VoiceManager {
       inputStream.push(null);
 
       const chunks: Buffer[] = [];
-      const outputStream = new Readable({ read() {} });
+      const outputStream = new PassThrough();
       
       outputStream.on('data', (chunk) => chunks.push(chunk));
       outputStream.on('end', () => resolve(Buffer.concat(chunks)));
@@ -146,7 +146,7 @@ export class VoiceManager {
       inputStream.push(null);
 
       const chunks: Buffer[] = [];
-      const outputStream = new Readable({ read() {} });
+      const outputStream = new PassThrough();
       
       outputStream.on('data', (chunk) => chunks.push(chunk));
       outputStream.on('end', () => resolve(Buffer.concat(chunks)));

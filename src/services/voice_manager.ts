@@ -134,7 +134,7 @@ export class VoiceManager {
         .audioFrequency(24000)
         .audioChannels(1)
         .format('s16le') // PCM 16-bit little-endian
-        .on('error', (err) => reject(err))
+        .on('error', (err: Error) => reject(err))
         .pipe(outputStream);
     });
   }
@@ -161,7 +161,7 @@ export class VoiceManager {
         .audioChannels(1)
         .format('ogg')
         .audioCodec('libopus')
-        .on('error', (err) => reject(err))
+        .on('error', (err: Error) => reject(err))
         .pipe(outputStream);
     });
   }

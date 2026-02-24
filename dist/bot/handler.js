@@ -8,6 +8,12 @@ import { initializeState, getState, updateState } from '../services/state_manage
 import { simulateGap } from '../services/simulation.js';
 import { searchMemories, addMemory } from '../services/gemini_memory.js';
 const bot = new Telegraf(config.TELEGRAM_BOT_TOKEN);
+async function ensureUser(userId, name) {
+    const user = await getUser(userId);
+    if (user)
+        return user;
+    return createUser(userId, name);
+}
 bot.start(async (ctx) => {
     const userId = ctx.from.id.toString();
     const name = ctx.from.first_name || 'Anonymous';
@@ -101,7 +107,7 @@ bot.command('debug_affection', async (ctx) => {
 bot.on('text', async (ctx) => {
     const userId = ctx.from.id.toString();
     const name = ctx.from.first_name || 'Anonymous';
-    let user = await getUser(userId);
+    const user = await ensureUser(userId, name);
     if (!user) {
         user = await createUser(userId, name);
         if (!user) {
@@ -227,11 +233,11 @@ bot.on('text', async (ctx) => {
     }
 });
 export const startBot = () => {
-    bot.launch().catch(err => {
-        console.error('Failed to launch bot', err);
+    bot.launch().catch((err) => {
+        console.error('Failed to launch bot:', err);
+        process.exit(1);
     });
     console.log('Bot started');
-    // Enable graceful stop
     process.once('SIGINT', () => bot.stop('SIGINT'));
     process.once('SIGTERM', () => bot.stop('SIGTERM'));
 };

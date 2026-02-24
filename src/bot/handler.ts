@@ -13,11 +13,23 @@ import type { User, HerState } from '../types/index.js';
 
 const bot = new Telegraf(config.TELEGRAM_BOT_TOKEN);
 
+async function ensureUser(userId: string, name: string): Promise<User | null> {
+  const user = await getUser(userId);
+  if (user) return user;
+  return createUser(userId, name);
+}
+
 bot.start(async (ctx) => {
   const userId = ctx.from.id.toString();
   const name = ctx.from.first_name || 'Anonymous';
-  
-  let user = await getUser(userId);
+
+  const existing = await getUser(userId);
+  if (existing) {
+    await ctx.reply(`Oh, it's you again.`);
+    return;
+  }
+
+  const user = await createUser(userId, name);
   if (!user) {
     user = await createUser(userId, name);
     await initializeState(userId);
@@ -167,6 +179,8 @@ bot.on('voice', async (ctx) => {
     console.error('[Voice] Error processing:', err);
     ctx.reply("my mic is broken. or my brain. one of the two.");
   }
+
+  await ctx.reply(`Hi ${name}. Who are you?`);
 });
 */
 
@@ -174,8 +188,8 @@ bot.on('voice', async (ctx) => {
 bot.on('text', async (ctx) => {
   const userId = ctx.from.id.toString();
   const name = ctx.from.first_name || 'Anonymous';
-  let user = await getUser(userId);
-  
+
+  const user = await ensureUser(userId, name);
   if (!user) {
     user = await createUser(userId, name);
     if (!user) {

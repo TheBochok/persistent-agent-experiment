@@ -83,7 +83,6 @@ export const updateUserAffection = async (userId: string, change: number): Promi
   if (error) {
     console.error('Error updating affection:', error);
   }
-  return newAffection;
 };
 
 export const addChatMessage = async (userId: string, role: 'user' | 'assistant', content: string) => {

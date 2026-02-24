@@ -70,7 +70,6 @@ export const updateUserAffection = async (userId, change) => {
     if (error) {
         console.error('Error updating affection:', error);
     }
-    return newAffection;
 };
 export const addChatMessage = async (userId, role, content) => {
     const { error } = await getSupabase().from('chat_history').insert({

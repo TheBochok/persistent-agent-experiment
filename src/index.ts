@@ -6,10 +6,12 @@ import cron from 'node-cron';
 import { simulateGap } from './services/simulation.js';
 import { getSupabase, getUser } from './services/supabase.js';
 
-// Check essential env vars
-if (!config.TELEGRAM_BOT_TOKEN) {
-  console.error('Missing TELEGRAM_BOT_TOKEN');
-  process.exit(1);
+const required = ['TELEGRAM_BOT_TOKEN', 'SUPABASE_URL', 'SUPABASE_KEY', 'GROK_API_KEY'] as const;
+for (const key of required) {
+  if (!config[key]) {
+    console.error(`Missing required environment variable: ${key}`);
+    process.exit(1);
+  }
 }
 
 

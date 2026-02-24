@@ -113,6 +113,7 @@ bot.command('debug_affection', async (ctx) => {
   ctx.reply(`DEBUG: Affection set to ${score}. Check my vibes.`);
 });
 
+/*
 bot.command('voice', async (ctx) => {
   const userId = ctx.from.id.toString();
   // Usage: /voice tell me a joke
@@ -167,6 +168,8 @@ bot.on('voice', async (ctx) => {
     ctx.reply("my mic is broken. or my brain. one of the two.");
   }
 });
+*/
+
 
 bot.on('text', async (ctx) => {
   const userId = ctx.from.id.toString();

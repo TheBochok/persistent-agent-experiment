@@ -40,7 +40,7 @@ export const simulateGap = async (userId: string): Promise<string | null> => {
   }
 
   // Rule 2: If the last 2 messages are hers, NEVER send a third unsolicited.
-  const myConsecutiveCount = history.findIndex(m => m.role === 'user');
+  let myConsecutiveCount = history.findIndex(m => m.role === 'user');
   if (myConsecutiveCount === -1) myConsecutiveCount = history.length; // All hers
   
   if (myConsecutiveCount >= 2) {

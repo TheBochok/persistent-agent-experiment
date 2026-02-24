@@ -60,7 +60,7 @@ export const updateUserTimezone = async (userId, timezone) => {
 export const updateUserAffection = async (userId, change) => {
     const user = await getUser(userId);
     if (!user)
-        return 50; // Default or error
+        return 50;
     let newAffection = user.affection + change;
     newAffection = Math.max(0, Math.min(100, newAffection));
     const { error } = await getSupabase()
@@ -70,6 +70,7 @@ export const updateUserAffection = async (userId, change) => {
     if (error) {
         console.error('Error updating affection:', error);
     }
+    return newAffection;
 };
 export const addChatMessage = async (userId, role, content) => {
     const { error } = await getSupabase().from('chat_history').insert({
@@ -84,7 +85,7 @@ export const addChatMessage = async (userId, role, content) => {
 export const getRecentChatHistory = async (userId, limit = 10) => {
     const { data, error } = await getSupabase()
         .from('chat_history')
-        .select('role, content')
+        .select('role, content, created_at')
         .eq('user_id', userId)
         .order('created_at', { ascending: false })
         .limit(limit);
@@ -97,4 +98,17 @@ export const getRecentChatHistory = async (userId, limit = 10) => {
         .reverse()
         .map((m) => `${m.role === 'user' ? 'Him' : 'Me'}: ${m.content}`)
         .join('\n');
+};
+export const getRawChatHistory = async (userId, limit = 5) => {
+    const { data, error } = await getSupabase()
+        .from('chat_history')
+        .select('role, content, created_at')
+        .eq('user_id', userId)
+        .order('created_at', { ascending: false })
+        .limit(limit);
+    if (error) {
+        console.error('Error fetching raw chat history:', error);
+        return [];
+    }
+    return data; // Returns most recent first
 };

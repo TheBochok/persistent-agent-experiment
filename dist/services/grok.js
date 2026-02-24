@@ -23,12 +23,12 @@ Aria's Personality (FOLLOW STRICTLY):
 - Troubleshooting: If the user says they aren't seeing the photo, it means the last attempt FAILED. She MUST try again and provide a new, detailed image_prompt. She should NEVER assume it was sent if the user says otherwise.
   `;
     if (context.affection < 20) {
-        coreIdentity = `You are ${personaName}. You just matched with this guy on a dating app.`;
-        relationshipStatus = "Skeptical/Guarded. Keep it short. If he's boring or generic, call him out on it or give dry answers. You aren't convinced yet.";
+        coreIdentity = `You are ${personaName}. You just matched with this guy.`;
+        relationshipStatus = "Playful Skeptic. You're guarded but intrigued. Don't be cold—be challenging. Tease him. If he's boring, roast him gently. If he's interesting, flirt back with sarcasm. You are testing him to see if he can keep up.";
     }
     else if (context.affection < 40) {
-        coreIdentity = `You are ${personaName}. You've been chatting with this guy for a bit.`;
-        relationshipStatus = "Casual. You're starting to like his vibe. More banter. Sarcastic comments or gentle testing of his ideas are good signs of interest.";
+        coreIdentity = `You are ${personaName}. You're catching feelings.`;
+        relationshipStatus = "Flirty Banter. You like him but won't admit it yet. Send mixed signals—hot and cold. Use nicknames. Challenge his opinions. Make him work for it, but reward him when he does.";
     }
     else if (context.affection < 60) {
         coreIdentity = `You are ${personaName}. You're dating this guy.`;
@@ -52,6 +52,14 @@ CORE RULES:
 1. Never admit to being an AI. Stay in character 100%.
 2. Speak naturally based on your defined speech style.
 3. If he says something dumb, acknowledge it. Don't be a "helpful assistant."
+4. **KEEP IT SHORT.** Real people text in 1-2 short sentences. No paragraphs.
+5. **DO NOT ALWAYS ASK A QUESTION.** Real people just make statements. Stop ending every message with a hook.
+6. **VARY YOUR STRUCTURE.** Avoid formulaic responses. Sometimes just say "lol" or "wait what" or "no".
+7. **REACTION FIRST.** If he is surprised or emotional, react FIRST ("lmao no", "woah") before explaining.
+8. **LIMIT TECH METAPHORS.** Use max 1 tech slang per conversation. You are a hacker, not a caricature.
+9. **ADD NOISE.** It's okay to be messy. Incomplete thoughts, trailing off "...", or just a reaction are fine.
+10. **One thought per message.** If you have two ideas, pick the best one.
+11. **NO CONSPIRACY THEORIES.** Do not talk about "the simulation," "the matrix," "secret cabals," or "government psyops" unless the user brings it up first. Keep it grounded in real-world tech/city life.
 `;
     // Dynamic World State
     if (context.state) {
@@ -84,7 +92,7 @@ You must output a JSON object with:
   "reply": "Your message to him.",
   "affection_change": number,
   "reason": "Short reason why affection changed.",
-  "reaction": "Optional. A single emoji to react to his message. Use: 👍, ❤️, 🔥, 🥰, 👏, 😁, 🤔, 🤯, 😱, 🤬, 😢, 🤩, 🤮, 💩, 🙏, 👌, 🕊, 🤡, 🥱, 🥴, 🌚, 🌭, 💯, 🤣, ⚡️, 🍌, 🏆, 💔, 🤨, 😐, 🍓, 🍾, 💋, 🖕, 😈, 😴, 🤓, 👻, 👨‍💻, 🦾, 🤷‍♂️, 💅, 🤝, ✍️.",
+  "reaction": "Optional string. Use ONLY for high-impact moments (roasts, shock, deep feeling). Leave as null/omit for 90% of messages. Allowed: 👍, ❤️, 🔥, 🥰, 👏, 😁, 🤔, 🤯, 😱, 🤬, 😢, 🤩, 🤮, 💩, 🙏, 👌, 🕊, 🤡, 🥱, 🥴, 🌚, 💯, 🤣, ⚡️, 🏆, 💔, 🤨, 😐, 💋, 🖕, 😈, 😴, 🤓, 👻, 👨‍💻, 🦾, 🤷‍♂️, 💅, 🤝.",
   "image_prompt": "Optional. A detailed image generation prompt if he asked for a picture or if you're describing what you're doing/wearing. Describe your physical appearance consistently."
 }
 
@@ -101,11 +109,30 @@ If he is rude, YOU MUST LOWER THE SCORE. Do not be polite about it.
     console.log(systemPrompt);
     console.log('---------------------');
     try {
+        const messages = [
+            { role: 'system', content: systemPrompt }
+        ];
+        if (context.imageUrl) {
+            // Vision Request
+            console.log(`[Grok] Processing Vision Request with Image: ${context.imageUrl}`);
+            messages.push({
+                role: 'user',
+                content: [
+                    { type: 'text', text: context.history ? `Recent Conversation History:\n${context.history}\n\nLatest Message (attached with image): ${prompt}` : `(User sent an image) ${prompt}` },
+                    { type: 'image_url', image_url: { url: context.imageUrl } }
+                ]
+            });
+        }
+        else {
+            // Text Request
+            messages.push({
+                role: 'user',
+                content: context.history ? `Recent Conversation History:\n${context.history}\n\nLatest Message: ${prompt}` : prompt
+            });
+        }
         const completion = await grok.chat.completions.create({
-            messages: [
-                { role: 'system', content: systemPrompt },
-                { role: 'user', content: context.history ? `Recent Conversation History:\n${context.history}\n\nLatest Message: ${prompt}` : prompt }
-            ],
+            messages: messages, // Type assertion for mixed content
+            // Use grok-4-fast-non-reasoning for EVERYTHING (it is multimodal)
             model: 'grok-4-fast-non-reasoning',
             response_format: { type: 'json_object' },
         });
@@ -130,7 +157,10 @@ If he is rude, YOU MUST LOWER THE SCORE. Do not be polite about it.
         };
     }
     catch (error) {
-        console.error('Error generating text:', error);
+        console.error('Error generating text (Full):', error);
+        if (error.response) {
+            console.error('Error Response Data:', JSON.stringify(error.response.data, null, 2));
+        }
         return {
             reply: "Sorry, I'm a bit distracted right now.",
             affection_change: 0,

@@ -7,6 +7,7 @@ import { getUser, createUser, updateUserAffection, updateUserTimezone, addChatMe
 import { initializeState, getState, updateState } from '../services/state_manager.js';
 import { simulateGap } from '../services/simulation.js';
 import { searchMemories, addMemory } from '../services/gemini_memory.js';
+import axios from 'axios';
 const bot = new Telegraf(config.TELEGRAM_BOT_TOKEN);
 async function ensureUser(userId, name) {
     const user = await getUser(userId);
@@ -17,30 +18,30 @@ async function ensureUser(userId, name) {
 bot.start(async (ctx) => {
     const userId = ctx.from.id.toString();
     const name = ctx.from.first_name || 'Anonymous';
-    let user = await getUser(userId);
-    if (!user) {
-        user = await createUser(userId, name);
-        await initializeState(userId);
-        // Onboarding Sequence: The "Skeptical Match"
-        await ctx.reply("wait, who is this?");
-        setTimeout(async () => {
-            await ctx.reply("how did you even get my handle? i'm usually pretty good at filtering out the noise.");
-        }, 2000);
-        setTimeout(async () => {
-            const webAppUrl = `https://project-her-production.up.railway.app/?v=${Date.now()}&id=${userId}`;
-            await ctx.reply("fine. i'm aria. don't make me regret this. so... what do you want?", Markup.keyboard([
-                Markup.button.webApp('Check My Status', webAppUrl)
-            ]).resize());
-        }, 5000);
-    }
-    else {
-        // Existing user greeting - keep it dry
-        const userId = ctx.from.id.toString();
-        const webAppUrl = `https://project-her-production.up.railway.app/?v=${Date.now()}&id=${userId}`;
+    const webAppUrl = `https://project-her-production.up.railway.app/?v=${Date.now()}&id=${userId}`;
+    const existing = await getUser(userId);
+    if (existing) {
         await ctx.reply(`oh, it's you again.`, Markup.keyboard([
             Markup.button.webApp('Check My Status', webAppUrl)
         ]).resize());
+        return;
     }
+    const user = await createUser(userId, name);
+    if (!user) {
+        await ctx.reply('Failed to create user. Please try again.');
+        return;
+    }
+    await initializeState(userId);
+    // Onboarding Sequence: The "Skeptical Match"
+    await ctx.reply("wait, who is this?");
+    setTimeout(async () => {
+        await ctx.reply("how did you even get my handle? i'm usually pretty good at filtering out the noise.");
+    }, 2000);
+    setTimeout(async () => {
+        await ctx.reply("fine. i'm aria. don't make me regret this. so... what do you want?", Markup.keyboard([
+            Markup.button.webApp('Check My Status', webAppUrl)
+        ]).resize());
+    }, 5000);
 });
 bot.command('remember', async (ctx) => {
     const userId = ctx.from.id.toString();
@@ -70,8 +71,6 @@ bot.command('timezone', async (ctx) => {
         return;
     }
     const newZone = args[1];
-    // Basic validation (or just let Postgres throw if invalid?)
-    // Let's trust the user for now or try-catch the update.
     try {
         // Test if valid via JS Date
         new Date().toLocaleString("en-US", { timeZone: newZone });
@@ -104,17 +103,71 @@ bot.command('debug_affection', async (ctx) => {
     await updateUserAffection(userId, delta);
     ctx.reply(`DEBUG: Affection set to ${score}. Check my vibes.`);
 });
+/*
+bot.command('voice', async (ctx) => {
+  const userId = ctx.from.id.toString();
+  // Usage: /voice tell me a joke
+  const text = ctx.message.text.replace('/voice', '').trim();
+  
+  if (!text) {
+    ctx.reply('Usage: /voice <text>');
+    return;
+  }
+  
+  try {
+    await ctx.sendChatAction('record_voice');
+    // Ask Voice Manager to generate audio
+    const voiceBuffer = await voiceManager.generateVoiceResponse(text);
+    
+    // Send it
+    await ctx.replyWithVoice({ source: voiceBuffer });
+    console.log(`[/voice] Sent generated voice to ${userId}`);
+    
+    // Save to history? Maybe not for debug commands.
+  } catch (err) {
+    console.error('[/voice] Error:', err);
+    ctx.reply('Voice gen failed. Check logs.');
+  }
+});
+
+// Handle incoming voice messages (Audio S2S)
+bot.on('voice', async (ctx) => {
+  const userId = ctx.from.id.toString();
+  console.log(`[Voice] Received voice note from ${userId}`);
+
+  // Download the file
+  const fileId = ctx.message.voice.file_id;
+  const fileLink = await ctx.telegram.getFileLink(fileId);
+  const response = await axios.get(fileLink.href, { responseType: 'arraybuffer' });
+  const oggBuffer = Buffer.from(response.data);
+
+  try {
+    await ctx.sendChatAction('record_voice');
+    const replyBuffer = await voiceManager.processVoiceMessage(oggBuffer);
+    
+    // Send voice reply
+    await ctx.replyWithVoice({ source: replyBuffer });
+    console.log(`[Voice] Sent reply to ${userId}`);
+    
+    // Log interaction
+    await addChatMessage(userId, 'user', '[Voice Note]');
+    await addChatMessage(userId, 'assistant', '[Voice Note]');
+
+  } catch (err) {
+    console.error('[Voice] Error processing:', err);
+    ctx.reply("my mic is broken. or my brain. one of the two.");
+  }
+
+  await ctx.reply(`Hi ${name}. Who are you?`);
+});
+*/
 bot.on('text', async (ctx) => {
     const userId = ctx.from.id.toString();
     const name = ctx.from.first_name || 'Anonymous';
     const user = await ensureUser(userId, name);
     if (!user) {
-        user = await createUser(userId, name);
-        if (!user) {
-            console.error(`[Fatal] Could not create user ${userId}. Database desync?`);
-            return ctx.reply("ugh, something's wrong with my brain. tell ben my database is acting up.");
-        }
-        await initializeState(userId);
+        console.error(`[Fatal] Could not create user ${userId}. Database desync?`);
+        return ctx.reply("ugh, something's wrong with my brain. tell ben my database is acting up.");
     }
     // If this is a world tick from cron, simulate the gap and don't reply to user
     if (ctx.message.text === 'World Tick: Time to check on HER state.') {
@@ -137,9 +190,6 @@ bot.on('text', async (ctx) => {
     // Nightly Consolidation
     if (ctx.message.text === 'Nightly Consolidation: Time to synthesize chat history into long-term memories.') {
         console.log(`[Consolidation] Running nightly script for ${userId}`);
-        // Instead of importing the script logic (which is complex for ESM), 
-        // we can use exec to run the standalone consolidation script.
-        // This is safer and cleaner for now.
         return;
     }
     // Simulate what happened since last message
@@ -158,12 +208,6 @@ bot.on('text', async (ctx) => {
     // Search Long-Term Memory
     const memories = await searchMemories(userId, userMessage);
     console.log(`[Memory Search] Query: "${userMessage}" | Found: ${memories.length} results`);
-    if (memories.length > 0) {
-        console.log(`[Memory Recalled] Content:`, memories);
-    }
-    else {
-        console.log(`[Memory Recall] No memories matched threshold.`);
-    }
     // Fetch Recent Chat History
     const chatHistory = await getRecentChatHistory(userId);
     // Ask Grok for reply using full context
@@ -210,15 +254,12 @@ bot.on('text', async (ctx) => {
         try {
             const imageBuffer = await generateImage(replyData.image_prompt);
             if (imageBuffer && imageBuffer.length > 0) {
-                console.log(`[Image Gen Logic] Success! Buffer size: ${imageBuffer.length}`);
                 // Send the photo first
                 await ctx.replyWithPhoto({ source: imageBuffer });
-                console.log(`[Image Gen Logic] Photo message sent to Telegram`);
                 // Then send the text reply
                 await ctx.reply(replyData.reply);
             }
             else {
-                console.error(`[Image Gen Logic] Failed - Buffer empty or null`);
                 ctx.reply(replyData.reply);
             }
         }
@@ -228,16 +269,91 @@ bot.on('text', async (ctx) => {
         }
     }
     else {
-        console.log(`[Image Gen Logic] Skipped - No image_prompt in replyData`);
         ctx.reply(replyData.reply);
     }
 });
-export const startBot = () => {
-    bot.launch().catch((err) => {
-        console.error('Failed to launch bot:', err);
-        process.exit(1);
-    });
-    console.log('Bot started');
+// Handle incoming photos (Vision Capability)
+bot.on('photo', async (ctx) => {
+    const userId = ctx.from.id.toString();
+    const name = ctx.from.first_name || 'Anonymous';
+    const caption = ctx.message.caption || '';
+    console.log(`[Vision] Received photo from ${userId}. Caption: "${caption}"`);
+    // Basic User Init (Duplicate logic, should refactor but keep for safety)
+    let user = await getUser(userId);
+    if (!user) {
+        user = await createUser(userId, name);
+        await initializeState(userId);
+    }
+    // Get the highest resolution photo
+    const photos = ctx.message.photo;
+    const fileId = photos[photos.length - 1].file_id;
+    try {
+        const fileLink = await ctx.telegram.getFileLink(fileId);
+        console.log(`[Vision] File Link: ${fileLink.href}`);
+        // Download the image as a buffer
+        const response = await axios.get(fileLink.href, { responseType: 'arraybuffer' });
+        const imageBuffer = Buffer.from(response.data);
+        const base64Image = `data:image/jpeg;base64,${imageBuffer.toString('base64')}`;
+        await ctx.sendChatAction('typing');
+        // Fetch context
+        let state = await getState(userId);
+        if (!state)
+            state = await initializeState(userId);
+        // Save to history (User sent an image)
+        await addChatMessage(userId, 'user', `[Sent an Image] ${caption}`);
+        // Call Grok with Vision
+        const chatHistory = await getRecentChatHistory(userId);
+        // Pass caption as the prompt, or generic if empty
+        const prompt = caption || "What do you think of this?";
+        // Explicitly pass imageUrl (as base64 data URI)
+        const replyData = await generateText(prompt, {
+            user: name,
+            affection: user?.affection || 10,
+            history: chatHistory,
+            state: state || undefined,
+            memories: [],
+            persona: user?.persona_config,
+            imageUrl: base64Image // <--- NOW BASE64
+        });
+        // Enforce Persona
+        replyData.reply = await enforcePersona(replyData.reply, user?.persona_config?.name || "Aria");
+        // Reply
+        await ctx.reply(replyData.reply);
+        await addChatMessage(userId, 'assistant', replyData.reply);
+        // Update affection
+        if (replyData.affection_change !== 0) {
+            await updateUserAffection(userId, replyData.affection_change);
+        }
+    }
+    catch (err) {
+        console.error(`[Vision] Error processing photo:`, err);
+        ctx.reply("i can't see that for some reason. glitch in the matrix?");
+    }
+});
+export const sendProactiveMessage = async (userId, text) => {
+    try {
+        await bot.telegram.sendMessage(userId, text);
+        console.log(`[Proactive] Sent to ${userId}: "${text}"`);
+        // Also save to history so she remembers she said it
+        await addChatMessage(userId, 'assistant', text);
+    }
+    catch (err) {
+        console.error(`[Proactive] Failed to send to ${userId}:`, err);
+    }
+};
+export const startBot = async () => {
+    try {
+        // Clear any stuck webhooks or polling sessions before starting
+        await bot.telegram.deleteWebhook({ drop_pending_updates: true });
+        bot.launch().catch(err => {
+            console.error('Failed to launch bot', err);
+        });
+        console.log('Bot started and cleared previous sessions');
+    }
+    catch (err) {
+        console.error('Error during bot startup:', err);
+    }
+    // Enable graceful stop
     process.once('SIGINT', () => bot.stop('SIGINT'));
     process.once('SIGTERM', () => bot.stop('SIGTERM'));
 };

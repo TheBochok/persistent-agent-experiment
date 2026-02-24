@@ -256,8 +256,38 @@ bot.on('text', async (ctx) => {
   }
 });
 
-// Handle incoming photos (Vision Capability)
-bot.on('photo', async (ctx) => {
+import { voiceManager } from '../services/voice_manager.ts';
+import axios from 'axios';
+
+// Handle incoming voice messages (Audio S2S)
+bot.on('voice', async (ctx) => {
+  const userId = ctx.from.id.toString();
+  console.log(`[Voice] Received voice note from ${userId}`);
+
+  // Download the file
+  const fileId = ctx.message.voice.file_id;
+  const fileLink = await ctx.telegram.getFileLink(fileId);
+  const response = await axios.get(fileLink.href, { responseType: 'arraybuffer' });
+  const oggBuffer = Buffer.from(response.data);
+
+  try {
+    await ctx.sendChatAction('record_voice');
+    const replyBuffer = await voiceManager.processVoiceMessage(oggBuffer);
+    
+    // Send voice reply
+    await ctx.replyWithVoice({ source: replyBuffer });
+    console.log(`[Voice] Sent reply to ${userId}`);
+    
+    // Log interaction
+    await addChatMessage(userId, 'user', '[Voice Note]');
+    await addChatMessage(userId, 'assistant', '[Voice Note]');
+
+  } catch (err) {
+    console.error('[Voice] Error processing:', err);
+    ctx.reply("my mic is broken. or my brain. one of the two.");
+  }
+});
+
   const userId = ctx.from.id.toString();
   const name = ctx.from.first_name || 'Anonymous';
   const caption = ctx.message.caption || '';

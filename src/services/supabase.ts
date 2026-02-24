@@ -101,7 +101,7 @@ export const addChatMessage = async (userId: string, role: 'user' | 'assistant',
 export const getRecentChatHistory = async (userId: string, limit = 10): Promise<string> => {
   const { data, error } = await getSupabase()
     .from('chat_history')
-    .select('role, content')
+    .select('role, content, created_at')
     .eq('user_id', userId)
     .order('created_at', { ascending: false })
     .limit(limit);
@@ -116,4 +116,19 @@ export const getRecentChatHistory = async (userId: string, limit = 10): Promise<
     .reverse()
     .map((m: any) => `${m.role === 'user' ? 'Him' : 'Me'}: ${m.content}`)
     .join('\n');
+};
+
+export const getRawChatHistory = async (userId: string, limit = 5): Promise<any[]> => {
+  const { data, error } = await getSupabase()
+    .from('chat_history')
+    .select('role, content, created_at')
+    .eq('user_id', userId)
+    .order('created_at', { ascending: false })
+    .limit(limit);
+
+  if (error) {
+    console.error('Error fetching raw chat history:', error);
+    return [];
+  }
+  return data; // Returns most recent first
 };

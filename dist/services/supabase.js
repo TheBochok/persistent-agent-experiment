@@ -1,12 +1,12 @@
 import { createClient } from '@supabase/supabase-js';
-import { config } from '../config/env.js';
+import config from '../config/env.js';
 const supabase = createClient(config.SUPABASE_URL, config.SUPABASE_KEY);
 export const getUser = async (userId) => {
     const { data, error } = await supabase
         .from('users')
         .select('*')
         .eq('id', userId)
-        .single();
+        .maybeSingle();
     if (error) {
         console.error('Error fetching user:', error);
         return null;
@@ -16,7 +16,7 @@ export const getUser = async (userId) => {
 export const createUser = async (userId, name) => {
     const { data, error } = await supabase
         .from('users')
-        .insert([{ id: userId, name: name, affection: 50 }])
+        .insert([{ id: userId, name, affection: 50 }])
         .select()
         .single();
     if (error) {
@@ -25,12 +25,8 @@ export const createUser = async (userId, name) => {
     }
     return data;
 };
-export const updateUserAffection = async (userId, change) => {
-    const user = await getUser(userId);
-    if (!user)
-        return 50; // Default or error
-    let newAffection = user.affection + change;
-    newAffection = Math.max(0, Math.min(100, newAffection));
+export const updateUserAffection = async (userId, currentAffection, delta) => {
+    const newAffection = Math.max(0, Math.min(100, currentAffection + delta));
     const { error } = await supabase
         .from('users')
         .update({ affection: newAffection })
@@ -38,6 +34,4 @@ export const updateUserAffection = async (userId, change) => {
     if (error) {
         console.error('Error updating affection:', error);
     }
-    return newAffection;
 };
-export { supabase };

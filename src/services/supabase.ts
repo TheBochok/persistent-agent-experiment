@@ -21,7 +21,7 @@ export const getUser = async (userId: string): Promise<User | null> => {
 export const createUser = async (userId: string, name: string): Promise<User | null> => {
   const { data, error } = await supabase
     .from('users')
-    .insert([{ id: userId, name: name, affection: 50 }])
+    .insert([{ id: userId, name, affection: 50 }])
     .select()
     .single();
 
@@ -32,12 +32,12 @@ export const createUser = async (userId: string, name: string): Promise<User | n
   return data as User;
 };
 
-export const updateUserAffection = async (userId: string, change: number): Promise<number> => {
-  const user = await getUser(userId);
-  if (!user) return 50; // Default or error
-
-  let newAffection = user.affection + change;
-  newAffection = Math.max(0, Math.min(100, newAffection));
+export const updateUserAffection = async (
+  userId: string,
+  currentAffection: number,
+  delta: number
+): Promise<void> => {
+  const newAffection = Math.max(0, Math.min(100, currentAffection + delta));
 
   const { error } = await supabase
     .from('users')
@@ -47,7 +47,4 @@ export const updateUserAffection = async (userId: string, change: number): Promi
   if (error) {
     console.error('Error updating affection:', error);
   }
-  return newAffection;
 };
-
-export { supabase };

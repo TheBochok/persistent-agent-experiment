@@ -70,7 +70,7 @@ export const updateUserTimezone = async (userId: string, timezone: string): Prom
 
 export const updateUserAffection = async (userId: string, change: number): Promise<number> => {
   const user = await getUser(userId);
-  if (!user) return 50; // Default or error
+  if (!user) return 50;
 
   let newAffection = user.affection + change;
   newAffection = Math.max(0, Math.min(100, newAffection));
@@ -83,6 +83,7 @@ export const updateUserAffection = async (userId: string, change: number): Promi
   if (error) {
     console.error('Error updating affection:', error);
   }
+  return newAffection;
 };
 
 export const addChatMessage = async (userId: string, role: 'user' | 'assistant', content: string) => {

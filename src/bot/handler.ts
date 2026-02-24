@@ -22,41 +22,38 @@ async function ensureUser(userId: string, name: string): Promise<User | null> {
 bot.start(async (ctx) => {
   const userId = ctx.from.id.toString();
   const name = ctx.from.first_name || 'Anonymous';
+  const webAppUrl = `https://project-her-production.up.railway.app/?v=${Date.now()}&id=${userId}`;
 
   const existing = await getUser(userId);
   if (existing) {
-    await ctx.reply(`Oh, it's you again.`);
+    await ctx.reply(`oh, it's you again.`,
+      Markup.keyboard([
+        Markup.button.webApp('Check My Status', webAppUrl)
+      ]).resize()
+    );
     return;
   }
 
   const user = await createUser(userId, name);
   if (!user) {
-    user = await createUser(userId, name);
-    await initializeState(userId);
-    
-    // Onboarding Sequence: The "Skeptical Match"
-    await ctx.reply("wait, who is this?");
-    setTimeout(async () => {
-      await ctx.reply("how did you even get my handle? i'm usually pretty good at filtering out the noise.");
-    }, 2000);
-    setTimeout(async () => {
-      const webAppUrl = `https://project-her-production.up.railway.app/?v=${Date.now()}&id=${userId}`;
-      await ctx.reply("fine. i'm aria. don't make me regret this. so... what do you want?", 
-        Markup.keyboard([
-          Markup.button.webApp('Check My Status', webAppUrl)
-        ]).resize()
-      );
-    }, 5000);
-  } else {
-    // Existing user greeting - keep it dry
-    const userId = ctx.from.id.toString();
-    const webAppUrl = `https://project-her-production.up.railway.app/?v=${Date.now()}&id=${userId}`;
-    await ctx.reply(`oh, it's you again.`, 
+    await ctx.reply('Failed to create user. Please try again.');
+    return;
+  }
+
+  await initializeState(userId);
+
+  // Onboarding Sequence: The "Skeptical Match"
+  await ctx.reply("wait, who is this?");
+  setTimeout(async () => {
+    await ctx.reply("how did you even get my handle? i'm usually pretty good at filtering out the noise.");
+  }, 2000);
+  setTimeout(async () => {
+    await ctx.reply("fine. i'm aria. don't make me regret this. so... what do you want?",
       Markup.keyboard([
         Markup.button.webApp('Check My Status', webAppUrl)
       ]).resize()
     );
-  }
+  }, 5000);
 });
 
 bot.command('remember', async (ctx) => {
@@ -191,12 +188,8 @@ bot.on('text', async (ctx) => {
 
   const user = await ensureUser(userId, name);
   if (!user) {
-    user = await createUser(userId, name);
-    if (!user) {
-        console.error(`[Fatal] Could not create user ${userId}. Database desync?`);
-        return ctx.reply("ugh, something's wrong with my brain. tell ben my database is acting up.");
-    }
-    await initializeState(userId);
+    console.error(`[Fatal] Could not create user ${userId}. Database desync?`);
+    return ctx.reply("ugh, something's wrong with my brain. tell ben my database is acting up.");
   }
 
   // If this is a world tick from cron, simulate the gap and don't reply to user

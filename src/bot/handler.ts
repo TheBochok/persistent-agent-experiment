@@ -322,8 +322,12 @@ bot.on('photo', async (ctx) => {
   
   try {
     const fileLink = await ctx.telegram.getFileLink(fileId);
-    const imageUrl = fileLink.href;
-    console.log(`[Vision] File Link: ${imageUrl}`);
+    console.log(`[Vision] File Link: ${fileLink.href}`);
+
+    // Download the image as a buffer
+    const response = await axios.get(fileLink.href, { responseType: 'arraybuffer' });
+    const imageBuffer = Buffer.from(response.data);
+    const base64Image = `data:image/jpeg;base64,${imageBuffer.toString('base64')}`;
 
     await ctx.sendChatAction('typing');
 
@@ -340,15 +344,15 @@ bot.on('photo', async (ctx) => {
     // Pass caption as the prompt, or generic if empty
     const prompt = caption || "What do you think of this?";
     
-    // Explicitly pass imageUrl
+    // Explicitly pass imageUrl (as base64 data URI)
     const replyData = await generateText(prompt, { 
       user: name, 
       affection: user?.affection || 10, 
       history: chatHistory, 
       state: state || undefined,
-      memories: [], // Should fetch memories too? For now, skip for speed.
+      memories: [], 
       persona: user?.persona_config,
-      imageUrl: imageUrl // <--- CRITICAL
+      imageUrl: base64Image // <--- NOW BASE64
     });
 
     // Enforce Persona

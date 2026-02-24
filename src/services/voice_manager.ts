@@ -117,6 +117,49 @@ export class VoiceManager {
     });
   }
 
+  public async generateVoiceResponse(text: string): Promise<Buffer> {
+    await this.connect();
+
+    return new Promise(async (resolve, reject) => {
+      const audioChunks: Buffer[] = [];
+      if (!this.ws) return reject('WebSocket not initialized');
+
+      const messageHandler = (data: WebSocket.Data) => {
+        const event = JSON.parse(data.toString());
+
+        if (event.type === 'response.output_audio.delta') {
+          audioChunks.push(Buffer.from(event.delta, 'base64'));
+        }
+
+        if (event.type === 'response.output_audio.done') {
+          this.ws?.off('message', messageHandler);
+          const fullPcm = Buffer.concat(audioChunks);
+          this.convertPcmToOgg(fullPcm).then(resolve).catch(reject);
+        }
+        
+        if (event.type === 'error') {
+           console.error('[VoiceManager] API Error:', event);
+           this.ws?.off('message', messageHandler);
+           reject(event.message);
+        }
+      };
+
+      this.ws.on('message', messageHandler);
+
+      // Send Text instead of Audio
+      this.ws.send(JSON.stringify({
+        type: 'conversation.item.create',
+        item: {
+          type: 'message',
+          role: 'user',
+          content: [{ type: 'input_text', text: text }]
+        }
+      }));
+
+      this.ws.send(JSON.stringify({ type: 'response.create' }));
+    });
+  }
+
   private convertOggToPcm(oggBuffer: Buffer): Promise<Buffer> {
     return new Promise((resolve, reject) => {
       const inputStream = new Readable();

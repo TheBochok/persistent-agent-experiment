@@ -113,6 +113,32 @@ bot.command('debug_affection', async (ctx) => {
   ctx.reply(`DEBUG: Affection set to ${score}. Check my vibes.`);
 });
 
+bot.command('voice', async (ctx) => {
+  const userId = ctx.from.id.toString();
+  // Usage: /voice tell me a joke
+  const text = ctx.message.text.replace('/voice', '').trim();
+  
+  if (!text) {
+    ctx.reply('Usage: /voice <text>');
+    return;
+  }
+  
+  try {
+    await ctx.sendChatAction('record_voice');
+    // Ask Voice Manager to generate audio
+    const voiceBuffer = await voiceManager.generateVoiceResponse(text);
+    
+    // Send it
+    await ctx.replyWithVoice({ source: voiceBuffer });
+    console.log(`[/voice] Sent generated voice to ${userId}`);
+    
+    // Save to history? Maybe not for debug commands.
+  } catch (err) {
+    console.error('[/voice] Error:', err);
+    ctx.reply('Voice gen failed. Check logs.');
+  }
+});
+
 // Handle incoming voice messages (Audio S2S)
 bot.on('voice', async (ctx) => {
   const userId = ctx.from.id.toString();

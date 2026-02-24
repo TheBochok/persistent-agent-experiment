@@ -42,7 +42,7 @@ export const getUser = async (userId: string): Promise<User | null> => {
 export const createUser = async (userId: string, name: string): Promise<User | null> => {
   const { data, error } = await getSupabase()
     .from('users')
-    .insert([{ id: userId, name: name, affection: 10, timezone: 'UTC' }])
+    .insert([{ id: userId, name: name, affection: 10 }])
     .select()
     .single();
 

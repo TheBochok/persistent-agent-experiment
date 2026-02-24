@@ -35,7 +35,7 @@ export const getUser = async (userId) => {
 export const createUser = async (userId, name) => {
     const { data, error } = await getSupabase()
         .from('users')
-        .insert([{ id: userId, name: name, affection: 10, timezone: 'UTC' }])
+        .insert([{ id: userId, name: name, affection: 10 }])
         .select()
         .single();
     if (error) {

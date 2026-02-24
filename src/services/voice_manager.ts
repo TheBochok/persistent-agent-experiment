@@ -4,9 +4,9 @@ import ffmpegPath from 'ffmpeg-static';
 import { Readable, PassThrough } from 'stream';
 import config from '../config/env.js';
 
-// Set ffmpeg path explicitly for ffmpeg-static
+// Set ffmpeg path explicitly for ffmpeg-static (Force cast to string)
 if (ffmpegPath) {
-  ffmpeg.setFfmpegPath(ffmpegPath);
+  ffmpeg.setFfmpegPath(ffmpegPath as unknown as string);
 } else {
   console.error('[VoiceManager] FFmpeg binary not found!');
 }

@@ -7,6 +7,8 @@ import { getUser, createUser, updateUserAffection, updateUserTimezone, addChatMe
 import { initializeState, getState, updateState } from '../services/state_manager.js';
 import { simulateGap } from '../services/simulation.js';
 import { searchMemories, addMemory } from '../services/gemini_memory.js';
+import { voiceManager } from '../services/voice_manager.js';
+import axios from 'axios';
 import type { User, HerState } from '../types/index.js';
 
 const bot = new Telegraf(config.TELEGRAM_BOT_TOKEN);
@@ -75,12 +77,9 @@ bot.command('timezone', async (ctx) => {
   }
   
   const newZone = args[1];
-  // Basic validation (or just let Postgres throw if invalid?)
-  // Let's trust the user for now or try-catch the update.
   try {
     // Test if valid via JS Date
     new Date().toLocaleString("en-US", { timeZone: newZone });
-    
     await updateUserTimezone(userId, newZone);
     ctx.reply(`Timezone updated to ${newZone}. I'll sync my schedule to that.`);
   } catch (e) {
@@ -112,6 +111,35 @@ bot.command('debug_affection', async (ctx) => {
   await updateUserAffection(userId, delta);
   
   ctx.reply(`DEBUG: Affection set to ${score}. Check my vibes.`);
+});
+
+// Handle incoming voice messages (Audio S2S)
+bot.on('voice', async (ctx) => {
+  const userId = ctx.from.id.toString();
+  console.log(`[Voice] Received voice note from ${userId}`);
+
+  // Download the file
+  const fileId = ctx.message.voice.file_id;
+  const fileLink = await ctx.telegram.getFileLink(fileId);
+  const response = await axios.get(fileLink.href, { responseType: 'arraybuffer' });
+  const oggBuffer = Buffer.from(response.data);
+
+  try {
+    await ctx.sendChatAction('record_voice');
+    const replyBuffer = await voiceManager.processVoiceMessage(oggBuffer);
+    
+    // Send voice reply
+    await ctx.replyWithVoice({ source: replyBuffer });
+    console.log(`[Voice] Sent reply to ${userId}`);
+    
+    // Log interaction
+    await addChatMessage(userId, 'user', '[Voice Note]');
+    await addChatMessage(userId, 'assistant', '[Voice Note]');
+
+  } catch (err) {
+    console.error('[Voice] Error processing:', err);
+    ctx.reply("my mic is broken. or my brain. one of the two.");
+  }
 });
 
 bot.on('text', async (ctx) => {
@@ -153,9 +181,6 @@ bot.on('text', async (ctx) => {
   // Nightly Consolidation
   if (ctx.message.text === 'Nightly Consolidation: Time to synthesize chat history into long-term memories.') {
     console.log(`[Consolidation] Running nightly script for ${userId}`);
-    // Instead of importing the script logic (which is complex for ESM), 
-    // we can use exec to run the standalone consolidation script.
-    // This is safer and cleaner for now.
     return;
   }
 
@@ -178,11 +203,6 @@ bot.on('text', async (ctx) => {
   // Search Long-Term Memory
   const memories = await searchMemories(userId, userMessage);
   console.log(`[Memory Search] Query: "${userMessage}" | Found: ${memories.length} results`);
-  if (memories.length > 0) {
-    console.log(`[Memory Recalled] Content:`, memories);
-  } else {
-    console.log(`[Memory Recall] No memories matched threshold.`);
-  }
 
   // Fetch Recent Chat History
   const chatHistory = await getRecentChatHistory(userId);
@@ -236,14 +256,11 @@ bot.on('text', async (ctx) => {
     try {
       const imageBuffer = await generateImage(replyData.image_prompt);
       if (imageBuffer && imageBuffer.length > 0) {
-        console.log(`[Image Gen Logic] Success! Buffer size: ${imageBuffer.length}`);
         // Send the photo first
         await ctx.replyWithPhoto({ source: imageBuffer });
-        console.log(`[Image Gen Logic] Photo message sent to Telegram`);
         // Then send the text reply
         await ctx.reply(replyData.reply);
       } else {
-        console.error(`[Image Gen Logic] Failed - Buffer empty or null`);
         ctx.reply(replyData.reply);
       }
     } catch (imgError: any) {
@@ -251,43 +268,12 @@ bot.on('text', async (ctx) => {
       ctx.reply(replyData.reply);
     }
   } else {
-    console.log(`[Image Gen Logic] Skipped - No image_prompt in replyData`);
     ctx.reply(replyData.reply);
   }
 });
 
-import { voiceManager } from '../services/voice_manager.ts';
-import axios from 'axios';
-
-// Handle incoming voice messages (Audio S2S)
-bot.on('voice', async (ctx) => {
-  const userId = ctx.from.id.toString();
-  console.log(`[Voice] Received voice note from ${userId}`);
-
-  // Download the file
-  const fileId = ctx.message.voice.file_id;
-  const fileLink = await ctx.telegram.getFileLink(fileId);
-  const response = await axios.get(fileLink.href, { responseType: 'arraybuffer' });
-  const oggBuffer = Buffer.from(response.data);
-
-  try {
-    await ctx.sendChatAction('record_voice');
-    const replyBuffer = await voiceManager.processVoiceMessage(oggBuffer);
-    
-    // Send voice reply
-    await ctx.replyWithVoice({ source: replyBuffer });
-    console.log(`[Voice] Sent reply to ${userId}`);
-    
-    // Log interaction
-    await addChatMessage(userId, 'user', '[Voice Note]');
-    await addChatMessage(userId, 'assistant', '[Voice Note]');
-
-  } catch (err) {
-    console.error('[Voice] Error processing:', err);
-    ctx.reply("my mic is broken. or my brain. one of the two.");
-  }
-});
-
+// Handle incoming photos (Vision Capability)
+bot.on('photo', async (ctx) => {
   const userId = ctx.from.id.toString();
   const name = ctx.from.first_name || 'Anonymous';
   const caption = ctx.message.caption || '';

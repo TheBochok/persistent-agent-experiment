@@ -1,7 +1,15 @@
 import WebSocket from 'ws';
 import ffmpeg from 'fluent-ffmpeg';
+import ffmpegPath from 'ffmpeg-static';
 import { Readable, PassThrough } from 'stream';
 import config from '../config/env.js';
+
+// Set ffmpeg path explicitly for ffmpeg-static
+if (ffmpegPath) {
+  ffmpeg.setFfmpegPath(ffmpegPath);
+} else {
+  console.error('[VoiceManager] FFmpeg binary not found!');
+}
 
 interface VoiceSessionConfig {
   voice: 'Eve' | 'Ara';

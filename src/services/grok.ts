@@ -179,7 +179,10 @@ If he is rude, YOU MUST LOWER THE SCORE. Do not be polite about it.
       reaction: result.reaction
     };
   } catch (error) {
-    console.error('Error generating text:', error);
+    console.error('Error generating text (Full):', error);
+    if ((error as any).response) {
+      console.error('Error Response Data:', JSON.stringify((error as any).response.data, null, 2));
+    }
     return {
       reply: "Sorry, I'm a bit distracted right now.",
       affection_change: 0,

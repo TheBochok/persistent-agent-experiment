@@ -243,11 +243,43 @@ bot.on('text', async (ctx) => {
   // Fetch Recent Chat History
   const chatHistory = await getRecentChatHistory(userId);
 
+  // Freemium Logic: Check if user is capped
+  let isCapped = false;
+  let softRejectionPrompt = "";
+  
+  // Default tier to free if undefined
+  const userTier = user?.tier || 'free';
+  const currentAffection = user?.affection || 10;
+
+  if (userTier === 'free' && currentAffection >= 30) {
+    isCapped = true;
+    softRejectionPrompt = `
+[SYSTEM NOTICE: FREE TIER LIMIT REACHED]
+The user is on the free tier and has hit the affection cap.
+You must now act BUSY, DISMISSIVE, and DISTRACTED.
+You are trying to end the conversation to "get back to work" or "go do something else."
+Do NOT be mean, just be unavailable.
+If they want your full attention, vaguely suggest they "buy you a coffee" or "upgrade" (implying subscription) but keep it in character (e.g., "i'd love to chat but i gotta focus. unless you're buying me coffee? lol").
+Refuse to engage in deep emotional topics. Keep replies short and detached.
+`;
+  }
+
   // Ask Grok for reply using full context
-  const replyData = await generateText(userMessage, {
-    user: name,
-    affection: user?.affection || 10,
-    history: chatHistory,
+  // We append the softRejectionPrompt to the userMessage effectively, or pass it in context if we modified generateText.
+  // Since generateText constructs the system prompt, passing it as part of 'userMessage' is a hack but works if we don't want to change the signature.
+  // BETTER: Append it to the memories or history context? 
+  // Let's modify the userMessage sent to generateText to include a hidden system instruction if possible, 
+  // OR just append it to the end of the prompt.
+  
+  let finalPrompt = userMessage;
+  if (isCapped) {
+      finalPrompt += `\n\n${softRejectionPrompt}`;
+  }
+
+  const replyData = await generateText(finalPrompt, { 
+    user: name, 
+    affection: currentAffection, 
+    history: chatHistory, 
     state: state || undefined,
     memories: memories,
     persona: user?.persona_config,
@@ -277,9 +309,17 @@ bot.on('text', async (ctx) => {
   await addChatMessage(userId, 'assistant', replyData.reply);
   
   // Update affection (Smart Logic)
-  if (replyData.affection_change !== 0) {
-    await updateUserAffection(userId, replyData.affection_change);
-    console.log(`[Affection] User ${name}: ${replyData.affection_change} (${replyData.reason})`);
+  // If capped, we do NOT allow affection to increase. It can only decrease.
+  let affectionChange = replyData.affection_change;
+  
+  if (isCapped && affectionChange > 0) {
+      console.log(`[Affection Cap] User ${name} is capped at ${currentAffection}. Ignoring increase of ${affectionChange}.`);
+      affectionChange = 0;
+  }
+
+  if (affectionChange !== 0) {
+    await updateUserAffection(userId, affectionChange);
+    console.log(`[Affection] User ${name}: ${affectionChange} (${replyData.reason})`);
   }
 
   // Update last interaction timestamp
@@ -351,12 +391,27 @@ bot.on('photo', async (ctx) => {
     
     // Pass caption as the prompt, or generic if empty
     const prompt = caption || "What do you think of this?";
+
+    // Freemium Logic (Vision)
+    let isCapped = false;
+    let softRejectionPrompt = "";
+    
+    // Default tier to free if undefined
+    const userTier = user?.tier || 'free';
+    const currentAffection = user?.affection || 10;
+
+    if (userTier === 'free' && currentAffection >= 30) {
+      isCapped = true;
+      softRejectionPrompt = ` [SYSTEM NOTICE: FREE TIER LIMIT REACHED. ACT BUSY/DISMISSIVE due to work/distraction. Suggest coffee/upgrade if they want attention.]`;
+    }
+    
+    let finalPrompt = prompt + softRejectionPrompt;
     
     // Explicitly pass imageUrl (as base64 data URI)
-    const replyData = await generateText(prompt, {
-      user: name,
-      affection: user?.affection || 10,
-      history: chatHistory,
+    const replyData = await generateText(finalPrompt, { 
+      user: name, 
+      affection: currentAffection, 
+      history: chatHistory, 
       state: state || undefined,
       memories: [],
       persona: user?.persona_config,
@@ -372,8 +427,13 @@ bot.on('photo', async (ctx) => {
     await addChatMessage(userId, 'assistant', replyData.reply);
 
     // Update affection
-    if (replyData.affection_change !== 0) {
-      await updateUserAffection(userId, replyData.affection_change);
+    let affectionChange = replyData.affection_change;
+    if (isCapped && affectionChange > 0) {
+        affectionChange = 0;
+    }
+    
+    if (affectionChange !== 0) {
+      await updateUserAffection(userId, affectionChange);
     }
 
   } catch (err) {

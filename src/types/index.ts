@@ -5,6 +5,7 @@ export interface User {
   created_at?: string;
   timezone?: string; // e.g. 'Europe/Vilnius'
   persona_config?: PersonaConfig;
+  tier?: 'free' | 'pro';
 }
 
 export interface PersonaConfig {

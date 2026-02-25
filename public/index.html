@@ -67,7 +67,25 @@
             }
         }
 
+        async function reportTimezone() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const userId = urlParams.get('id') || tg.initDataUnsafe?.user?.id;
+            if (!userId) return;
+
+            const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+            if (!timezone) return;
+
+            try {
+                await fetch('/api/timezone', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ userId, timezone })
+                });
+            } catch (_) {}
+        }
+
         fetchStatus();
+        reportTimezone();
         setInterval(fetchStatus, 30000);
     </script>
 </body>

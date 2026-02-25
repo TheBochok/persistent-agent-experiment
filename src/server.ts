@@ -1,6 +1,6 @@
 import express from 'express';
 import { getState } from './services/state_manager.js';
-import { getUser } from './services/supabase.js';
+import { getUser, updateUserTimezone } from './services/supabase.js';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
@@ -9,6 +9,8 @@ const __dirname = path.dirname(__filename);
 
 const app = express();
 const port = process.env.PORT || 3000;
+
+app.use(express.json());
 
 // Serve static files for the Mini-App frontend
 app.use(express.static(path.join(__dirname, '../public')));
@@ -49,6 +51,23 @@ app.get('/api/status/:userId', async (req, res) => {
   } catch (error) {
     res.status(500).json({ error: 'Internal server error' });
   }
+});
+
+// Auto-set timezone from Mini App (fires silently on first open)
+app.post('/api/timezone', async (req, res) => {
+  const { userId, timezone } = req.body;
+  if (!userId || !timezone) return res.status(400).json({ error: 'Missing fields' });
+
+  const user = await getUser(userId);
+  if (!user) return res.status(404).json({ error: 'User not found' });
+
+  // Only update if not already set by the user manually
+  if (!user.timezone) {
+    await updateUserTimezone(userId, timezone);
+    console.log(`[Timezone] Auto-set for ${userId}: ${timezone}`);
+  }
+
+  res.json({ ok: true });
 });
 
 export const startServer = () => {

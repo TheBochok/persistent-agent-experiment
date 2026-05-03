@@ -22,7 +22,7 @@ async function ensureUser(userId: string, name: string): Promise<User | null> {
 bot.start(async (ctx) => {
   const userId = ctx.from.id.toString();
   const name = ctx.from.first_name || 'Anonymous';
-  const webAppUrl = `https://project-her-production.up.railway.app/?v=${Date.now()}&id=${userId}`;
+  const webAppUrl = `${config.MINI_APP_URL}/?v=${Date.now()}&id=${userId}`;
 
   const existing = await getUser(userId);
   if (existing) {

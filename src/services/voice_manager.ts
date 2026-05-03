@@ -1,3 +1,6 @@
+// Voice S2S over xAI's realtime WebSocket. Built and working, but the bot/handler.ts
+// hooks (`bot.on('voice')`, `/voice` command) are intentionally commented out
+// pending a UX decision on when Aria should reply with audio vs. text.
 import WebSocket from 'ws';
 import ffmpeg from 'fluent-ffmpeg';
 import ffmpegPath from 'ffmpeg-static';

@@ -1,44 +1,48 @@
-# Project HER (AI Companion)
+# Project HER
+
+A Telegram AI companion bot ("Aria") with persistent memory, autonomous world simulation, and a relationship-stage system that adjusts her personality based on interaction quality.
+
+Built on Telegraf, Grok (xAI) for the LLM, Gemini for embeddings, and Supabase (Postgres + pgvector) for persistence. A small Express server hosts a Telegram Mini-App for status checks.
 
 ## Setup
 
-1.  **Clone the repo:**
-    ```bash
-    git clone <repo-url>
-    cd project-her
-    npm install
-    ```
+```bash
+git clone <repo-url>
+cd project-her
+npm install
+cp .env.example .env   # fill in the values below
+```
 
-2.  **Configure Environment:**
-    Copy `.env.example` to `.env` and fill in the details:
-    ```bash
-    cp .env.example .env
-    ```
-    - `TELEGRAM_BOT_TOKEN`: From @BotFather
-    - `SUPABASE_URL` & `SUPABASE_KEY`: From Supabase dashboard
-    - `GROK_API_KEY`: xAI API Key
+Required env vars:
+- `TELEGRAM_BOT_TOKEN` — from @BotFather
+- `SUPABASE_URL`, `SUPABASE_KEY` — from the Supabase dashboard
+- `GROK_API_KEY` — xAI API key
+- `GEMINI_API_KEY` — Google AI Studio (used for memory embeddings)
+- `MINI_APP_URL` — public URL where the Mini-App is served (e.g. your Railway/Fly/etc. domain)
 
-3.  **Database Setup (Supabase):**
-    Run the following SQL in Supabase SQL Editor:
-    ```sql
-    create table public.users (
-      id text primary key,
-      name text,
-      affection int default 50,
-      created_at timestamp with time zone default timezone('utc'::text, now())
-    );
-    ```
+Optional: `GROK_BASE_URL` (defaults to `https://api.x.ai/v1`), `PORT` (defaults to 3000).
 
-4.  **Run:**
-    ```bash
-    npm run dev
-    ```
+Apply the SQL files in `migrations/` in order via the Supabase SQL Editor before first run. They create `users`, `her_state`, `memories` (pgvector), `chat_history`, and the `match_memories` RPC.
 
-## Architecture
-- **Bot:** Telegraf (Telegram)
-- **Brain:** Grok (xAI)
-- **Memory/State:** Supabase (PostgreSQL)
-- **Affection System:** Tracks user interaction quality to adjust personality.
+## Run
 
+```bash
+npm run dev      # tsx src/index.ts
+npm run build    # tsc -> dist/
+npm start        # node dist/index.js
+```
 
-# Force Deploy: 18:40
+## How it works
+
+- **`bot/handler.ts`** — Telegraf message handlers for text, photos (vision), and a few slash commands.
+- **`services/grok.ts`** — assembles the system prompt (relationship stage, persona, recalled memories, current world state) and calls Grok in JSON mode.
+- **`services/simulation.ts`** — every 15 minutes (via `node-cron` in `index.ts`), advances Aria's world state and occasionally produces a proactive message, gated by an affection-scaled probability and anti-spam rules.
+- **`services/gemini_memory.ts`** — long-term memory via Gemini embeddings + pgvector cosine similarity through the `match_memories` Postgres function.
+- **`services/persona_guard.ts`** — post-hoc rewriter that catches AI-leak phrasing ("as an AI...") and rewrites the reply in character.
+- **`server.ts`** + **`public/index.html`** — Telegram Mini-App showing Aria's current activity, mood, affection, and recent diary entries.
+
+See `CLAUDE.md` for a more detailed architecture writeup and `PERSONALITY.md` for the character brief.
+
+## License
+
+ISC. See `LICENSE`.

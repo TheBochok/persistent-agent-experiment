@@ -9,5 +9,5 @@ export interface HerState {
 export interface DiaryEntry {
   timestamp: string;
   event: string;
-  mood_shift?: number; // Effect on affection/mood (-10 to +10)
+  mood_shift?: number; // Effect on mood / affection score (-10 to +10)
 }

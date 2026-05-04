@@ -1,7 +1,7 @@
 {
   "name": "project-her",
   "version": "1.0.0",
-  "description": "",
+  "description": "Experimental conversational agent with persistent long-term memory, an autonomous internal world that evolves between user interactions, and a behavior model that adapts to interaction history.",
   "main": "index.js",
   "type": "module",
   "scripts": {

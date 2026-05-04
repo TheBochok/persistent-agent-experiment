@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Project HER is a TypeScript/Node.js Telegram AI companion ("Aria") deployed on Railway. It pairs a Telegraf bot with an Express server hosting a Telegram Mini-App, uses Grok (xAI) as the LLM, Gemini for embeddings, and Supabase (PostgreSQL + pgvector) for persistence. Aria has an autonomous "world state" simulated by cron, long-term memory via vector search, and a freemium affection system that gates intimacy behind a paid tier.
+Project HER is a TypeScript/Node.js experimental conversational agent ("Aria") delivered through Telegram and deployed on Railway. The repo pairs a Telegraf bot with an Express server hosting a Telegram Mini-App, uses Grok (xAI) as the LLM, Gemini for embeddings, and Supabase (PostgreSQL + pgvector) for persistence. The agent maintains an autonomous "world state" advanced by cron, long-term memory via vector search, and a behavior model whose stage is driven by an affection score that adapts to interaction history. A free-tier engagement cap gates the higher behavior stages behind an upgrade.
 
 ## Commands
 
@@ -50,7 +50,7 @@ src/
     └── voice_manager.ts     # xAI realtime WS S2S (currently NOT wired into handler.ts)
 ```
 
-**Inbound text flow:** Telegram → `bot.on('text')` → ensure user → `simulateGap()` (advances world state if 15+ min idle) → `searchMemories()` (Gemini embed + pgvector) → `getRecentChatHistory()` → freemium check (free + affection ≥ 30 ⇒ inject "act busy" rejection prompt) → `generateText()` returns `{reply, affection_change, reason, reaction?, image_prompt?}` → optional `ctx.react()` → `enforcePersona()` rewrites if AI-speak detected → save to `chat_history` → update affection (capped on free tier) → optional `generateImage()` + photo reply → text reply.
+**Inbound text flow:** Telegram → `bot.on('text')` → ensure user → `simulateGap()` (advances world state if 15+ min idle) → `searchMemories()` (Gemini embed + pgvector) → `getRecentChatHistory()` → engagement-cap check (free tier + affection ≥ 30 ⇒ inject "diminished availability" prompt) → `generateText()` returns `{reply, affection_change, reason, reaction?, image_prompt?}` → optional `ctx.react()` → `enforcePersona()` rewrites if AI-speak detected → save to `chat_history` → update affection (capped on free tier) → optional `generateImage()` + photo reply → text reply.
 
 **Inbound photo flow:** `bot.on('photo')` downloads the highest-res image, base64-encodes it as a data URI, and passes it to `generateText()` via `imageUrl` — Grok's vision is invoked through the same multimodal `chat.completions.create` call.
 
@@ -58,22 +58,22 @@ src/
 - `*/15 * * * *` — for each user, call `simulateGap()`. If it returns a `proactive_thought`, roll `0.01 + affection/400` to decide whether to push it via `sendProactiveMessage()`. (Note: `handler.ts` contains a parallel `World Tick: ...` text-message branch with a *different* probability curve `0.01 + affection/100*0.03`, used when the world tick is delivered as a fake user message; the cron path in `index.ts` is the live one.)
 - `0 3 * * *` — nightly consolidation hook (currently a stub log line; the actual synthesis logic lives in `scripts/consolidate_memories.ts` and isn't wired into the cron yet).
 
-**Mini-App (`server.ts` + `public/index.html`):** Telegram Web App accessible from the reply keyboard button in `/start`. `GET /api/status/:userId` returns Aria's activity/mood/affection/recent diary entries; `POST /api/timezone` auto-sets the user's IANA timezone on first open of the Mini-App (only if not already set manually).
+**Mini-App (`server.ts` + `public/index.html`):** Telegram Web App accessible from the reply keyboard button in `/start`. `GET /api/status/:userId` returns the agent's activity/mood/affection/recent diary entries; `POST /api/timezone` auto-sets the user's IANA timezone on first open of the Mini-App (only if not already set manually).
 
-## Personality & Affection System
+## Persona & Behavior Model
 
-Aria's voice is defined in `PERSONALITY.md` and re-encoded inline in `grok.ts` (`personaTraits`) — the file is documentation, the prompt string is the source of truth at runtime. Users can override Aria entirely with a `persona_config` JSONB on the `users` row (`name`, `visual_description`, `personality_traits[]`, `speech_style`, `archetype`).
+Aria's default voice is defined in `PERSONALITY.md` and re-encoded inline in `grok.ts` (`personaTraits`) — the file is documentation, the prompt string is the source of truth at runtime. Users can override the persona entirely with a `persona_config` JSONB on the `users` row (`name`, `visual_description`, `personality_traits[]`, `speech_style`, `archetype`).
 
-**Five relationship stages** (`grok.ts`, by `affection`):
-- `<20` Playful Skeptic — guarded, testing him
-- `<40` Flirty Banter — mixed signals
-- `<60` Dating
-- `<80` Girlfriend
-- `≥80` Soulmate
+**Five behavior stages** (`grok.ts`, by `affection`):
+- `<20` Guarded — assessing the user, sceptical
+- `<40` Curious — warming up, mixed signals
+- `<60` Engaged — comfortable; established conversational partner
+- `<80` Close — protective, attached
+- `≥80` Bonded — vulnerable, fiercely loyal
 
 **Scoring:** Grok returns `affection_change` in its JSON response (range −10..+10 per turn, with rules in the system prompt). New users start at **10**, are clamped to **0–100** in `updateUserAffection`.
 
-**Freemium gate:** `users.tier` defaults to `free`. When a free user reaches `affection ≥ 30`, `handler.ts` injects a "FREE TIER LIMIT REACHED" instruction into the prompt telling Aria to act busy/dismissive, and any positive `affection_change` is zeroed out (decreases still apply). Pro users have no cap.
+**Free-tier engagement cap:** `users.tier` defaults to `free`. When a free user reaches `affection ≥ 30`, `handler.ts` injects a "FREE TIER ENGAGEMENT CAP REACHED" instruction telling the agent to show diminished availability and steer the exchange short, and any positive `affection_change` is zeroed out (decreases still apply). Pro users have no cap.
 
 ## Key Technical Details
 
@@ -82,8 +82,8 @@ Aria's voice is defined in `PERSONALITY.md` and re-encoded inline in `grok.ts` (
 - **ESM** — `"type": "module"` + `NodeNext` resolution. **All local imports must use `.js` extensions even when importing `.ts` source.**
 - **dotenv** — `import 'dotenv/config'` lives only in `src/index.ts` and `src/config/env.ts` (and standalone scripts). It must remain the first import in `index.ts`.
 - **Supabase client** — Lazy-initialized in `supabase.ts` to tolerate import-time env gaps; the exported `supabase` is a thin proxy that calls `getSupabase()` per operation.
-- **Anti-spam in `simulation.ts`** — Suppresses proactive thoughts if Aria sent the last message <6h ago, or if she's already sent ≥2 consecutive messages without a user reply.
-- **Persona guard recursion** — `enforcePersona()` calls `generateText()` to rewrite AI-leak responses; this means a single user turn can trigger two Grok calls. Don't make it pass affection/state/memories or you'll re-enter the relationship-stage logic.
+- **Anti-spam in `simulation.ts`** — Suppresses proactive thoughts if the agent sent the last message <6h ago, or if it has already sent ≥2 consecutive messages without a user reply.
+- **Persona guard recursion** — `enforcePersona()` calls `generateText()` to rewrite AI-leak responses; this means a single user turn can trigger two Grok calls. Don't make it pass affection/state/memories or you'll re-enter the behavior-stage logic.
 - **Voice (`voice_manager.ts`)** — Implements xAI realtime WS audio S2S with ffmpeg ogg↔pcm transcoding, but the `bot.on('voice')` handler and `/voice` command in `handler.ts` are commented out. Treat it as dormant code.
 - **Environment variables** — Required: `TELEGRAM_BOT_TOKEN`, `SUPABASE_URL`, `SUPABASE_KEY`, `GROK_API_KEY`. Effectively required for full features: `GEMINI_API_KEY` (memory search/save silently fails without it). Optional: `GROK_BASE_URL` (defaults to `https://api.x.ai/v1`), `PORT` (defaults to 3000). `HF_API_KEY` / `HF_MODEL_ID` are dead — image gen uses Grok now.
 - **Deployment** — Railway via `nixpacks.toml` (installs `ffmpeg` apt pkg for voice). The Mini-App URL is hardcoded to `https://project-her-production.up.railway.app/` in `handler.ts`.

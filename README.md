@@ -1,4 +1,4 @@
-# Project HER
+# PAE
 
 Experimental conversational agent with persistent long-term memory, an autonomous internal world that evolves between user interactions, and a behavior model that adapts to interaction history. Built to explore whether continuity-of-state changes the texture of human–agent interaction.
 

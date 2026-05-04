@@ -1,8 +1,7 @@
 import { generateText } from './grok.js';
 
 /**
- * Hardened Persona Guardrails for Aria
- * Prevents AI leaks and ensures consistent tone.
+ * Persona guardrail: catches AI-leak phrasing in agent replies and rewrites them in voice.
  */
 export const enforcePersona = async (reply: string, personaName: string = "Aria"): Promise<string> => {
   const lowercaseReply = reply.toLowerCase();

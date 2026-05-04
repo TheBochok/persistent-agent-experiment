@@ -114,7 +114,7 @@ export const getRecentChatHistory = async (userId: string, limit = 10): Promise<
   // Format as "Role: Content" and reverse back to chronological order
   return data
     .reverse()
-    .map((m: any) => `${m.role === 'user' ? 'Him' : 'Me'}: ${m.content}`)
+    .map((m: any) => `${m.role === 'user' ? 'User' : 'Me'}: ${m.content}`)
     .join('\n');
 };
 

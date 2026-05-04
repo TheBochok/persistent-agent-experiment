@@ -42,7 +42,7 @@ bot.start(async (ctx) => {
 
   await initializeState(userId);
 
-  // Onboarding Sequence: The "Skeptical Match"
+  // Onboarding sequence: in-character first contact
   await ctx.reply("wait, who is this?");
   setTimeout(async () => {
     await ctx.reply("how did you even get my handle? i'm usually pretty good at filtering out the noise.");
@@ -243,7 +243,7 @@ bot.on('text', async (ctx) => {
   // Fetch Recent Chat History
   const chatHistory = await getRecentChatHistory(userId);
 
-  // Freemium Logic: Check if user is capped
+  // Free-tier engagement cap check
   let isCapped = false;
   let softRejectionPrompt = "";
   
@@ -254,13 +254,11 @@ bot.on('text', async (ctx) => {
   if (userTier === 'free' && currentAffection >= 30) {
     isCapped = true;
     softRejectionPrompt = `
-[SYSTEM NOTICE: FREE TIER LIMIT REACHED]
-The user is on the free tier and has hit the affection cap.
-You must now act BUSY, DISMISSIVE, and DISTRACTED.
-You are trying to end the conversation to "get back to work" or "go do something else."
-Do NOT be mean, just be unavailable.
-If they want your full attention, vaguely suggest they "buy you a coffee" or "upgrade" (implying subscription) but keep it in character (e.g., "i'd love to chat but i gotta focus. unless you're buying me coffee? lol").
-Refuse to engage in deep emotional topics. Keep replies short and detached.
+[SYSTEM NOTICE: FREE TIER ENGAGEMENT CAP REACHED]
+The user is on the free tier and has reached the engagement ceiling.
+Show diminished availability — busy, distracted, mid-task — and steer the exchange short.
+Do NOT be mean, just unavailable. Decline to go deep on emotional topics.
+If the user pushes for more attention, hint in-character that staying focused on them long-term would mean upgrading (e.g., "i'd love to chat but i gotta focus. unless you're buying me coffee? lol"). Keep replies short and detached.
 `;
   }
 
@@ -308,10 +306,9 @@ Refuse to engage in deep emotional topics. Keep replies short and detached.
   // Save Assistant Message to History
   await addChatMessage(userId, 'assistant', replyData.reply);
   
-  // Update affection (Smart Logic)
-  // If capped, we do NOT allow affection to increase. It can only decrease.
+  // Apply affection delta. When the engagement cap is in effect, only decreases pass through.
   let affectionChange = replyData.affection_change;
-  
+
   if (isCapped && affectionChange > 0) {
       console.log(`[Affection Cap] User ${name} is capped at ${currentAffection}. Ignoring increase of ${affectionChange}.`);
       affectionChange = 0;
@@ -392,7 +389,7 @@ bot.on('photo', async (ctx) => {
     // Pass caption as the prompt, or generic if empty
     const prompt = caption || "What do you think of this?";
 
-    // Freemium Logic (Vision)
+    // Free-tier engagement cap check (vision path)
     let isCapped = false;
     let softRejectionPrompt = "";
     
@@ -402,7 +399,7 @@ bot.on('photo', async (ctx) => {
 
     if (userTier === 'free' && currentAffection >= 30) {
       isCapped = true;
-      softRejectionPrompt = ` [SYSTEM NOTICE: FREE TIER LIMIT REACHED. ACT BUSY/DISMISSIVE due to work/distraction. Suggest coffee/upgrade if they want attention.]`;
+      softRejectionPrompt = ` [SYSTEM NOTICE: FREE TIER ENGAGEMENT CAP REACHED. Show diminished availability — busy, distracted. Hint at upgrading in-character if they push for more attention.]`;
     }
     
     let finalPrompt = prompt + softRejectionPrompt;
